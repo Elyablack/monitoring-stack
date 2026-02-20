@@ -1,0 +1,65 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: always
+    networks:
+      - monitoring
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - ./data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+      - '--storage.tsdb.retention.size=300MB'
+      - '--web.enable-lifecycle'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./grafana:/var/lib/grafana
+    networks:
+      - monitoring
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    restart: always
+    networks:
+      - monitoring
+    ports:
+      - "127.0.0.1:9093:9093"
+    volumes:
+      - ./alertmanager:/etc/alertmanager:ro
+      - ./alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+
+  tg-relay:
+    image: python:3.12-alpine
+    container_name: tg-relay
+    restart: always
+    networks:
+      - monitoring
+    working_dir: /app
+    volumes:
+      - ./tg-relay:/app:ro
+    env_file:
+      - ./tg-relay/tg.env
+    environment:
+      - PORT=8080
+    command: ["python", "/app/app.py"]
+    expose:
+      - "8080"
+
+networks:
+  monitoring:
+    external: true

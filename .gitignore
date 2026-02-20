@@ -1,0 +1,10 @@
+data/
+grafana/
+alertmanager-data/
+*.state
+*.db
+*.wal
+*.log
+.env
+
+tg-relay/tg.env
