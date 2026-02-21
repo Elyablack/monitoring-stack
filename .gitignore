@@ -1,10 +1,25 @@
+# data
 data/
 grafana/
 alertmanager-data/
+loki-data
+
+# secrets
+tg-relay/tg.env
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# python
+__pycache__/
+*.pyc
+
+# others
 *.state
 *.db
 *.wal
 *.log
 .env
 
-tg-relay/tg.env

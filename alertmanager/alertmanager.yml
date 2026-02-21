@@ -2,14 +2,47 @@ global:
   resolve_timeout: 5m
 
 route:
-  receiver: telegram
-  group_by: ['alertname','job']
-  group_wait: 30s
-  group_interval: 5m
-  repeat_interval: 2h
+  receiver: telegram-warning
+  group_by: ['alertname', 'severity', 'instance_name', 'instance']
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 4h
+
+  routes:
+    - matchers:
+        - severity="critical"
+      receiver: telegram-critical
+
+    - matchers:
+        - severity="warning"
+      receiver: telegram-warning
+      repeat_interval: 12h
+
+    - matchers:
+        - severity="test"
+      receiver: telegram-test
+      repeat_interval: 1h
+
+inhibit_rules:
+  - source_matchers:
+      - alertname="NodeExporterDown"
+      - severity="critical"
+    target_matchers:
+      - severity="warning"
+    equal: ['instance', 'instance_name']
 
 receivers:
-- name: telegram
-  webhook_configs:
-  - url: http://tg-relay:8080/
-    send_resolved: true
+  - name: telegram-critical
+    webhook_configs:
+      - url: http://tg-relay:8080/
+        send_resolved: true
+
+  - name: telegram-warning
+    webhook_configs:
+      - url: http://tg-relay:8080/
+        send_resolved: true
+
+  - name: telegram-test
+    webhook_configs:
+      - url: http://tg-relay:8080/
+        send_resolved: true

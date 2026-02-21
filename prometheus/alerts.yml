@@ -1,56 +1,67 @@
 groups:
-- name: node
-  rules:
+  - name: node
+    rules:
 
-  - alert: NodeExporterDown
-    expr: up{job=~"vps|home1|home2"} == 0
-    for: 2m
-    labels:
-      severity: critical
-    annotations:
-      summary: "Node exporter down ({{ $labels.instance }})"
-      description: "Prometheus cannot scrape node_exporter on {{ $labels.instance }} for 2m."
-      runbook_url: "runbook:check-node-exporter"
+      - alert: NodeExporterDown
+        expr: up{job=~"vps|home1|home2"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node exporter down ({{ $labels.instance_name }})"
+          description: "Prometheus cannot scrape node_exporter on {{ $labels.instance_name }} ({{ $labels.instance }}) for 2m."
+          runbook_url: "runbook:check-node-exporter"
 
-  - alert: HostHighCpuLoad
-    expr: 100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 90
-    for: 10m
-    labels:
-      severity: warning
-    annotations:
-      summary: "High CPU usage ({{ $labels.instance }})"
-      description: "CPU usage > 90% for 10m on {{ $labels.instance }}."
-      runbook_url: "runbook:cpu"
+      - alert: HostHighCpuLoad
+        expr: 100 * (1 - avg by (instance, instance_name) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage ({{ $labels.instance_name }})"
+          description: "CPU usage > 90% for 10m on {{ $labels.instance_name }} ({{ $labels.instance }})."
+          runbook_url: "runbook:cpu"
 
-  - alert: HostLowDiskSpace
-    expr: |
-      (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} /
-       node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) * 100 < 10
-    for: 10m
-    labels:
-      severity: critical
-    annotations:
-      summary: "Low disk space ({{ $labels.instance }})"
-      description: "Disk free < 10% for 10m on {{ $labels.instance }} (mount={{ $labels.mountpoint }})."
-      runbook_url: "runbook:disk"
+      - alert: HostLowDiskSpace
+        expr: |
+          (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} /
+           node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) * 100 < 10
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space ({{ $labels.instance_name }})"
+          description: "Disk free < 10% for 10m on {{ $labels.instance_name }} ({{ $labels.instance }}), mount={{ $labels.mountpoint }}."
+          runbook_url: "runbook:disk"
 
-  - alert: HostMemoryPressure
-    expr: |
-      (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
-    for: 10m
-    labels:
-      severity: warning
-    annotations:
-      summary: "High memory pressure ({{ $labels.instance }})"
-      description: "Memory used > 90% for 10m on {{ $labels.instance }}."
-      runbook_url: "runbook:memory"
+      - alert: DiskWillFillIn24h
+        expr: |
+          (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} /
+           clamp_min(rate(node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}[6h]) * -1, 1)) < 86400
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk will fill in < 24h ({{ $labels.instance_name }})"
+          description: "At current rate, filesystem may fill within 24h on {{ $labels.instance_name }} ({{ $labels.instance }}), mount={{ $labels.mountpoint }}."
+          runbook_url: "runbook:disk-growth"
 
-  - alert: HostRebootDetected
-    expr: changes(node_boot_time_seconds[15m]) > 0
-    for: 0m
-    labels:
-      severity: warning
-    annotations:
-      summary: "Host reboot detected ({{ $labels.instance }})"
-      description: "node_boot_time_seconds changed in last 15m for {{ $labels.instance }}."
-      runbook_url: "runbook:reboot"
+      - alert: HostMemoryPressure
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory pressure ({{ $labels.instance_name }})"
+          description: "Memory used > 90% for 10m on {{ $labels.instance_name }} ({{ $labels.instance }})."
+          runbook_url: "runbook:memory"
+
+      - alert: HostRebootDetected
+        expr: changes(node_boot_time_seconds[15m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host reboot detected ({{ $labels.instance_name }})"
+          description: "node_boot_time_seconds changed in last 15m for {{ $labels.instance_name }} ({{ $labels.instance }})."
+          runbook_url: "runbook:reboot"

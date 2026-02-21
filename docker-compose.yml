@@ -60,6 +60,34 @@ services:
     expose:
       - "8080"
 
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    restart: always
+    networks:
+      - monitoring
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./loki:/etc/loki:ro
+      - ./loki-data:/loki
+    command:
+      - -config.file=/etc/loki/loki.yml
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    restart: always
+    networks:
+      - monitoring
+    volumes:
+      - ./promtail:/etc/promtail
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log:/var/log:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command:
+      - -config.file=/etc/promtail/promtail.yml
+
 networks:
   monitoring:
     external: true
