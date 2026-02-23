@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+.env
+*.env
+tg.env
+
+.git
+.github
+.DS_Store

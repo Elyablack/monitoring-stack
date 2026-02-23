@@ -1,10 +1,12 @@
 import os, json
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
 TOKEN = os.environ.get("TG_BOT_TOKEN", "")
 CHAT_ID = os.environ.get("TG_CHAT_ID", "")
+
+MAX_MSG = int(os.environ.get("MAX_MSG", "3500"))
 
 def tg_send(text: str):
     if not TOKEN or not CHAT_ID:
@@ -28,31 +30,38 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             data = {}
 
-        alerts = data.get("alerts", [])
+        alerts = data.get("alerts", []) or []
+
         if not alerts:
             msg = "Alertmanager: webhook received (no alerts in payload)."
         else:
             lines = []
-            for a in alerts[:20]:
+            for a in alerts[:50]:
                 status = a.get("status", "?")
                 labels = a.get("labels", {}) or {}
                 ann = a.get("annotations", {}) or {}
 
                 name = labels.get("alertname", "unknown")
                 sev = labels.get("severity", "n/a")
+                job = labels.get("job", "")
                 inst = labels.get("instance", "n/a")
-                inst_name = labels.get("instance_name", "")
+
+                inst_name = labels.get("instance_name", "") or labels.get("node", "") or labels.get("hostname", "")
 
                 summary = (ann.get("summary") or "").strip()
                 descr = (ann.get("description") or "").strip()
 
-                header = f"[{status}] {name} sev={sev} instance={inst}"
+                header = f"[{status}] {name} sev={sev}"
+                if job:
+                    header += f" job={job}"
+                header += f" instance={inst}"
                 if inst_name:
                     header += f" name={inst_name}"
 
                 block = header
                 if summary:
                     block += "\n" + summary
+            
                 if descr and descr != summary:
                     block += "\n" + descr
 
@@ -60,7 +69,10 @@ class Handler(BaseHTTPRequestHandler):
 
             msg = "\n\n---\n\n".join(lines)
 
-        print(f"webhook alerts={len(alerts)}", flush=True)
+        if len(msg) > MAX_MSG:
+            msg = msg[:MAX_MSG] + "\n\n(truncated)"
+
+        print(f"webhook alerts={len(alerts)} bytes={len(body)} msg_len={len(msg)}", flush=True)
 
         try:
             tg_send(msg)
@@ -77,4 +89,4 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8080"))
-    HTTPServer(("0.0.0.0", port), Handler).serve_forever()
+    ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()

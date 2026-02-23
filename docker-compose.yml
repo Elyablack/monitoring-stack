@@ -44,21 +44,18 @@ services:
       - '--storage.path=/alertmanager'
 
   tg-relay:
-    image: python:3.12-alpine
+    build:
+    image: ghcr.io/elyablack/tg-relay:latest
     container_name: tg-relay
     restart: always
     networks:
       - monitoring
-    working_dir: /app
-    volumes:
-      - ./tg-relay:/app:ro
     env_file:
       - ./tg-relay/tg.env
     environment:
       - PORT=8080
-    command: ["python", "/app/app.py"]
     expose:
-      - "8080"
+      - "8080"      
 
   loki:
     image: grafana/loki:latest
