@@ -59,4 +59,27 @@ jobs:
             cd /srv/monitoring
             docker compose pull tg-relay
             docker compose up -d tg-relay
+            
+            for i in $(seq 1 30); do
+              hs="$(docker inspect tg-relay --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')"
+              if [ "$hs" = "healthy" ] || [ "$hs" = "none" ]; then
+                break
+              fi
+              sleep 2
+            done
+
+            docker compose ps tg-relay
             docker image prune -af
+
+    notify:
+      needs: deploy
+      runs-on: ubuntu-latest
+      if: always()
+      steps:
+        - name: Notify telegram
+          run: |
+            status="${{ needs.deploy.result }}"
+            text="monitoring-stack: tg-relay deploy ${status} on ${{ github.ref_name }} sha=${{ github.sha }}"
+            curl -fsS -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "{\"chat_id\":\"${{ secrets.TG_CHAT_ID }}\",\"text\":\"$text\",\"disable_web_page_preview\":true}"
