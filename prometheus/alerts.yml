@@ -43,7 +43,7 @@ groups:
           severity: warning
         annotations:
           summary: "Disk will fill in < 24h ({{ $labels.instance_name }})"
-          description: "At current rate, filesystem may fill within 24h on {{ $labels.instance_name }} ({{ $labels.instance }}), mount={{ $labels.mountpoint }}."
+          description: "At current rate, FS may fill within 24h on {{ $labels.instance_name }} ({{ $labels.instance }}), mount={{ $labels.mountpoint }}."
           runbook_url: "runbook:disk-growth"
 
       - alert: HostMemoryPressure

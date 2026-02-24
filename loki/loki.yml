@@ -33,6 +33,6 @@ compactor:
   compaction_interval: 10m
   retention_enabled: true
   delete_request_store: filesystem
-  
+
 ruler:
   alertmanager_url: http://alertmanager:9093
