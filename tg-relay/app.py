@@ -84,6 +84,16 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(f"ERR {e}\n".encode("utf-8"))
 
+
+    def do_GET(self):
+        if self.path in ("/healthz", "/health", "/"):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"OK\n")
+        else:
+            self.send_response(404)
+            self.end_headers()
+
     def log_message(self, fmt, *args):
         return
 
