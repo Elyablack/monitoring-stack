@@ -58,7 +58,7 @@ jobs:
             --entrypoint /bin/promtool \
             -v "$PWD/prometheus:/etc/prometheus:ro" \
             prom/prometheus:latest \
-            promtool check config /etc/prometheus/prometheus.yml
+            check config /etc/prometheus/prometheus.yml
 
       - name: Prometheus rules check
         run: |
@@ -66,7 +66,7 @@ jobs:
             --entrypoint /bin/promtool \
             -v "$PWD/prometheus:/etc/prometheus:ro" \
             prom/prometheus:latest \
-            promtool check rules /etc/prometheus/alerts.yml
+            check rules /etc/prometheus/alerts.yml
 
   amtool:
     runs-on: ubuntu-latest
@@ -81,4 +81,4 @@ jobs:
             --entrypoint /bin/amtool \
             -v "$PWD/alertmanager:/etc/alertmanager:ro" \
             prom/alertmanager:latest \
-            amtool check-config /etc/alertmanager/alertmanager.yml
+            check-config /etc/alertmanager/alertmanager.yml
