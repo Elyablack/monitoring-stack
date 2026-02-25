@@ -1,4 +1,10 @@
+name: tg-relay
+
 on:
+  pull_request:
+    paths:
+      - "tg-relay/**"
+      - ".github/workflows/tg-relay.yml"
   push:
     branches: ["main"]
     paths:
@@ -11,11 +17,11 @@ permissions:
   packages: write
 
 concurrency:
-  group: tg-relay-main
+  group: tg-relay-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build_and_push:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,13 +31,24 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build (PR)
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./tg-relay
+          file: ./tg-relay/Dockerfile
+          push: false
+          tags: ghcr.io/elyablack/tg-relay:pr-${{ github.event.pull_request.number }}
+
+      - name: Build and push (main)
+        if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v6
         with:
           context: ./tg-relay
@@ -42,10 +59,14 @@ jobs:
             ghcr.io/elyablack/tg-relay:${{ github.sha }}
 
   deploy:
-    needs: build_and_push
+    needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.mode.outputs.mode }}
     steps:
-      - name: Deploy on VPS via SSH
+      - name: Deploy on VPS (health-wait + rollback)
+        id: ssh
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -55,31 +76,84 @@ jobs:
           script: |
             set -euo pipefail
             cd /srv/monitoring
+
+            wait_health() {
+              for i in $(seq 1 30); do
+                hs="$(docker inspect tg-relay --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null || echo none)"
+                if [ "$hs" = "healthy" ] || [ "$hs" = "none" ]; then
+                  return 0
+                fi
+                sleep 2
+              done
+              return 1
+            }
+
+            export TG_RELAY_TAG=latest
             docker compose pull tg-relay
-            docker compose up -d --no-deps tg-relay
+            docker compose up -d tg-relay
 
-            for i in $(seq 1 30); do
-              hs="$(docker inspect tg-relay --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')"
-              if [ "$hs" = "healthy" ] || [ "$hs" = "none" ]; then
-                break
-              fi
-              sleep 2
-            done
+            if wait_health; then
+              echo "DEPLOY_MODE=latest"
+              docker compose ps tg-relay
+              exit 0
+            fi
 
+            export TG_RELAY_TAG=stable
+            docker compose pull tg-relay || true
+            docker compose up -d tg-relay
+
+            if wait_health; then
+              echo "DEPLOY_MODE=rollback"
+              docker compose ps tg-relay
+              exit 0
+            fi
+
+            echo "DEPLOY_MODE=failed"
             docker compose ps tg-relay
-            docker image prune -af
+            exit 1
+
+      - name: Extract deploy mode from logs
+        id: mode
+        shell: bash
+        run: |
+          mode="unknown"
+          if grep -q 'DEPLOY_MODE=latest' <<< "${{ steps.ssh.outputs.stdout }}"; then mode="latest"; fi
+          if grep -q 'DEPLOY_MODE=rollback' <<< "${{ steps.ssh.outputs.stdout }}"; then mode="rollback"; fi
+          if grep -q 'DEPLOY_MODE=failed' <<< "${{ steps.ssh.outputs.stdout }}"; then mode="failed"; fi
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+
+  promote_stable:
+    needs: deploy
+    if: ${{ needs.deploy.result == 'success' && needs.deploy.outputs.mode == 'latest' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Promote stable tag to current sha
+        run: |
+          docker buildx imagetools create \
+            -t ghcr.io/elyablack/tg-relay:stable \
+            ghcr.io/elyablack/tg-relay:${{ github.sha }}
 
   notify:
-    needs: deploy
+    needs: [deploy]
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    if: always()
     steps:
       - name: Notify telegram
+        shell: bash
         run: |
           status="${{ needs.deploy.result }}"
-          text="monitoring-stack: tg-relay deploy ${status} on ${{ github.ref_name }} sha=${{ github.sha }}"
-          jq -n --arg chat_id "${{ secrets.TG_CHAT_ID }}" --arg text "$text" \
-            '{chat_id:$chat_id,text:$text,disable_web_page_preview:true}' \
-          | curl -fsS -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendMessage" \
-              -H "Content-Type: application/json" \
-              --data-binary @-
+          mode="${{ needs.deploy.outputs.mode }}"
+          text="monitoring-stack: tg-relay deploy ${status} mode=${mode} branch=${{ github.ref_name }} sha=${{ github.sha }}"
+          curl -fsS -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\":\"${{ secrets.TG_CHAT_ID }}\",\"text\":\"$text\",\"disable_web_page_preview\":true}"

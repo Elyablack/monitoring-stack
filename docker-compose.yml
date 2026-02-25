@@ -44,7 +44,7 @@ services:
       - '--storage.path=/alertmanager'
 
   tg-relay:
-    image: ghcr.io/elyablack/tg-relay:latest
+    image: ghcr.io/elyablack/tg-relay:${TG_RELAY_TAG:-latest}
     container_name: tg-relay
     restart: always
     networks:
