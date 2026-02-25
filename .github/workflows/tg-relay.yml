@@ -63,10 +63,9 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     outputs:
-      mode: ${{ steps.mode.outputs.mode }}
+      mode: ${{ steps.readmode.outputs.mode }}
     steps:
       - name: Deploy on VPS (health-wait + rollback)
-        id: ssh
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -88,12 +87,14 @@ jobs:
               return 1
             }
 
+            rm -f /tmp/tg-relay-deploy-mode
+
             export TG_RELAY_TAG=latest
             docker compose pull tg-relay
             docker compose up -d tg-relay
 
             if wait_health; then
-              echo "DEPLOY_MODE=latest"
+              echo latest > /tmp/tg-relay-deploy-mode
               docker compose ps tg-relay
               exit 0
             fi
@@ -103,23 +104,28 @@ jobs:
             docker compose up -d tg-relay
 
             if wait_health; then
-              echo "DEPLOY_MODE=rollback"
+              echo rollback > /tmp/tg-relay-deploy-mode
               docker compose ps tg-relay
               exit 0
             fi
 
-            echo "DEPLOY_MODE=failed"
+            echo failed > /tmp/tg-relay-deploy-mode
             docker compose ps tg-relay
             exit 1
 
-      - name: Extract deploy mode from logs
-        id: mode
+      - name: Read deploy mode (ssh)
+        id: readmode
         shell: bash
         run: |
-          mode="unknown"
-          if grep -q 'DEPLOY_MODE=latest' <<< "${{ steps.ssh.outputs.stdout }}"; then mode="latest"; fi
-          if grep -q 'DEPLOY_MODE=rollback' <<< "${{ steps.ssh.outputs.stdout }}"; then mode="rollback"; fi
-          if grep -q 'DEPLOY_MODE=failed' <<< "${{ steps.ssh.outputs.stdout }}"; then mode="failed"; fi
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+          SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${{ secrets.VPS_PORT }}"
+          HOST="${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}"
+          mode="$(ssh $SSH_OPTS "$HOST" 'cat /tmp/tg-relay-deploy-mode 2>/dev/null || echo unknown')"
+          mode="$(printf '%s' "$mode" | tr -d '\r\n')"
           echo "mode=$mode" >> "$GITHUB_OUTPUT"
 
   promote_stable:
