@@ -3,9 +3,20 @@ data/
 grafana/
 alertmanager-data/
 loki-data
+promtail/
+**/*-data/
 
 # secrets
 tg-relay/tg.env
+.env
+.env.*
+**/secrets/*
+**/*.pem
+**/*.key
+**/*id_rsa*
+**/*id_ed25519*
+/caddy/env
+/caddy/env.local
 
 # OS / editor
 .DS_Store

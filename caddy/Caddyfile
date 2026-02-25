@@ -1,0 +1,36 @@
+grafana.142.93.143.228.nip.io {
+	encode zstd gzip
+
+	log {
+		output file /var/log/caddy/grafana-access.log
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		-Server
+	}
+
+	route {
+		basic_auth {
+			admin {env.GRAFANA_BASIC_AUTH_HASH}
+		}
+
+		@login_post {
+			method POST
+			path /login*
+		}
+		respond @login_post 403
+
+		@login_get {
+			method GET HEAD
+			path /login*
+		}
+		redir @login_get / 302
+
+		reverse_proxy 127.0.0.1:3000
+	}
+}
