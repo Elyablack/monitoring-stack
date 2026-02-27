@@ -1,0 +1,13 @@
+[caddy-404]
+enabled = true
+backend = pyinotify
+filter = caddy-404
+logpath = /var/log/caddy/grafana-access.log
+
+findtime = 10m
+maxretry = 10
+bantime  = 12h
+
+port = 80,443
+protocol = tcp
+action = nftables-multiport[name=caddy-404, port="80,443", protocol=tcp]
