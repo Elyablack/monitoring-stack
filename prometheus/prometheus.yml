@@ -25,6 +25,14 @@ scrape_configs:
         labels:
           instance_name: "home-lab"
 
+  - job_name: "demo-app"
+    scrape_interval: 5s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["demo-app:8081"]
+        labels:
+          instance_name: "demo-app"
+
 alerting:
   alertmanagers:
     - static_configs:

@@ -32,7 +32,7 @@ services:
       - GF_SERVER_ROOT_URL=https://grafana.142.93.143.228.nip.io/
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
-      - GF_AUTH_BASIC_ENABLED=true
+      - GF_AUTH_BASIC_ENABLED=false
       - GF_USERS_ALLOW_SIGN_UP=false
 
   alertmanager:
@@ -96,6 +96,31 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     command:
       - -config.file=/etc/promtail/promtail.yml
+
+  demo-app:
+    build:
+      context: ./demo-app
+    container_name: demo-app
+    restart: always
+    ports:
+      - "127.0.0.1:8081:8081"
+    networks:
+      - monitoring
+    environment:
+      - APP_NAME=demo-app
+      - ENV=prod
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >
+          import urllib.request;
+          urllib.request.urlopen("http://127.0.0.1:8081/healthz", timeout=2).read()
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
 
 networks:
   monitoring:
