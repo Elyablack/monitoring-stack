@@ -27,6 +27,8 @@ schema_config:
 limits_config:
   allow_structured_metadata: false
   retention_period: 7d
+  shard_streams:
+    enabled: false
 
 compactor:
   working_directory: /loki/compactor
