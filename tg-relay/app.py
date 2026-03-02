@@ -99,4 +99,5 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8080"))
+    print(f"tg-relay starting port={port} max_msg={MAX_MSG} token_set={bool(TOKEN)} chat_id_set={bool(CHAT_ID)}", flush=True)
     ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()
