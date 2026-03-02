@@ -3,16 +3,26 @@ import json
 import os
 import time
 import uuid
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 
 APP_NAME = os.getenv("APP_NAME", "demo-app")
 ENV = os.getenv("ENV", "prod")
 
+BASE_DIR = Path(__file__).resolve().parent
+TEMPLATES_DIR = BASE_DIR / "templates"
+STATIC_DIR = BASE_DIR / "static"
+
 app = FastAPI(title=APP_NAME)
+
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 HTTP_REQUESTS_TOTAL = Counter(
     "http_requests_total",
@@ -62,28 +72,6 @@ def _json_log(event: str, **fields) -> None:
     print(json.dumps(payload, ensure_ascii=False), flush=True)
 
 
-INDEX_HTML = f"""<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>{APP_NAME}</title>
-</head>
-<body style="font-family: ui-sans-serif, system-ui; max-width: 860px; margin: 40px auto;">
-  <h1>{APP_NAME}</h1>
-  <p>Environment: <b>{ENV}</b></p>
-  <ul>
-    <li><a href="/healthz">/healthz</a></li>
-    <li><a href="/metrics">/metrics</a></li>
-    <li><a href="/slow?ms=500">/slow?ms=500</a> (latency demo)</li>
-    <li><a href="/error?code=500">/error?code=500</a> (error demo)</li>
-    <li><a href="/error?code=503">/error?code=503</a></li>
-  </ul>
-  <p>Use these endpoints to trigger Prometheus alerts and see logs in Loki.</p>
-</body>
-</html>
-"""
-
-
 @app.middleware("http")
 async def metrics_and_logs(request: Request, call_next):
     req_id = request.headers.get("x-request-id") or str(uuid.uuid4())
@@ -130,8 +118,19 @@ async def metrics_and_logs(request: Request, call_next):
 
 
 @app.get("/", response_class=HTMLResponse)
-async def index():
-    return INDEX_HTML
+async def index(request: Request):
+    ctx = {
+        "request": request,
+        "app_name": APP_NAME,
+        "env": ENV,
+        "endpoints": [
+            {"name": "health", "method": "GET", "path": "/healthz", "descr": "healthcheck"},
+            {"name": "metrics", "method": "GET", "path": "/metrics", "descr": "Prometheus scrape"},
+            {"name": "slow", "method": "GET", "path": "/slow?ms=500", "descr": "latency demo"},
+            {"name": "error", "method": "GET", "path": "/error?code=503", "descr": "error demo"},
+        ],
+    }
+    return templates.TemplateResponse("index.html", ctx)
 
 
 @app.get("/healthz", response_class=PlainTextResponse)
