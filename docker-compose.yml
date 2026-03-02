@@ -29,9 +29,9 @@ services:
       - monitoring
     environment:
       - GF_SERVER_DOMAIN=grafana.142.93.143.228.nip.io
-      - GF_SERVER_ROOT_URL=https://grafana.142.93.143.228.nip.io/
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_SERVER_ROOT_URL=https://grafana.142.93.143.228.nip.io
+      - GF_SERVER_ENFORCE_DOMAIN=true
+      - GF_AUTH_ANONYMOUS_ENABLED=false
       - GF_AUTH_BASIC_ENABLED=false
       - GF_USERS_ALLOW_SIGN_UP=false
 
