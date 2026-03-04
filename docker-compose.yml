@@ -108,9 +108,8 @@ services:
       - "127.0.0.1:8081:8081"
     networks:
       - monitoring
-    environment:
-      - APP_NAME=demo-app
-      - ENV=prod
+    env_file:
+      - ./demo-app/.env
     healthcheck:
       test:
         - CMD

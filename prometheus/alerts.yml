@@ -65,3 +65,68 @@ groups:
           summary: "Host reboot detected ({{ $labels.instance_name }})"
           description: "node_boot_time_seconds changed in last 15m for {{ $labels.instance_name }} ({{ $labels.instance }})."
           runbook_url: "runbook:reboot"
+
+  - name: demo-app
+    rules:
+      - alert: DemoAppDown
+        expr: up{job="demo-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "demo-app is down ({{ $labels.instance_name }})"
+          description: "Prometheus cannot scrape demo-app for 1m. target={{ $labels.instance }}"
+
+      - alert: DemoAppHigh5xxRate
+        expr: |
+          (
+            sum(rate(http_requests_total{service="demo-app",status=~"5.."}[2m]))
+            /
+            clamp_min(sum(rate(http_requests_total{service="demo-app"}[2m])), 1)
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "demo-app high 5xx rate"
+          description: "5xx ratio > 5% for 2m (service=demo-app)."
+
+      - alert: DemoAppHighP95Latency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(http_request_duration_seconds_bucket{service="demo-app"}[5m]))
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "demo-app p95 latency high"
+          description: "p95 latency > 0.5s for 5m (service=demo-app)."
+
+      - alert: DemoAppHighInflight
+        expr: http_inflight_requests{service="demo-app"} > 20
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "demo-app high inflight requests"
+          description: "In-flight requests > 20 for 2m (service=demo-app)."
+
+      - alert: DemoAppButtonError503
+        expr: increase(app_forced_errors_total{service="demo-app",code="503"}[1m]) > 0
+        for: 0m
+        labels:
+          severity: demo
+        annotations:
+          summary: "demo-app: button-generated 503"
+          description: "Someone triggered /error?code=503 in the last 1m."
+
+      - alert: DemoAppButtonSlow
+        expr: increase(app_forced_latency_total{service="demo-app"}[1m]) > 0
+        for: 0m
+        labels:
+          severity: demo
+        annotations:
+          summary: "demo-app: button-generated slow"
+          description: "Someone triggered /slow in the last 1m."
