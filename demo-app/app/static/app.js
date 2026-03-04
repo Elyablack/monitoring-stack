@@ -233,8 +233,7 @@
 
   async function refreshStatusLoop() {
     setTime();
-    const ok = await pingHealthz();
-    setStatus(ok);
+    setStatus(await pingHealthz());
     setInterval(async () => {
       setTime();
       setStatus(await pingHealthz());
@@ -278,41 +277,41 @@
     return [head, "", ...lines].join("\n");
   }
 
-  function summarizeLogLine(line) {
-    try {
-      const o = JSON.parse(line);
-      const ts = (o.ts || "").replace("T", " ").replace("Z", "");
-      const ev = o.event || "-";
+  function summarizeLogEntry(e) {
+    const ts = (e.ts || "").replace("T", " ").replace("Z", "");
+    const ev = e.event || "-";
 
-      if (ev === "forced_slow") {
-        const ms = o.ms ?? "-";
-        const ip = o.client_ip ?? "-";
-        return `${ts}  forced_slow ms=${ms} ip=${ip}`;
-      }
-
-      if (ev === "forced_error") {
-        return `${ts}  forced_error code=${o.code ?? "-"} msg=${o.msg ?? ""}`.trim();
-      }
-
-      if (ev === "http_request") {
-        const st = String(o.status ?? "-").padEnd(3);
-        const ms = String(o.duration_ms ?? "-").padStart(4);
-        const m = (o.method || "-").padEnd(4);
-        const p = o.path || "-";
-        const ip = o.client_ip || "-";
-        return `${ts}  ${st}  ${ms}ms  ${m} ${p}  ip=${ip}`;
-      }
-
-      return `${ts}  ${ev}  ${line.slice(0, 200)}`;
-    } catch {
-      return line;
+    if (ev === "forced_slow") {
+      const ms = e.ms ?? "-";
+      const ip = e.client_ip ?? "-";
+      return `${ts}  forced_slow ms=${ms} ip=${ip}`;
     }
+
+    if (ev === "forced_error") {
+      const code = e.code ?? "-";
+      const msg = e.msg ?? "";
+      return `${ts}  forced_error code=${code} ${msg}`.trim();
+    }
+
+    if (ev === "http_request") {
+      const st = String(e.status ?? "-").padEnd(3);
+      const ms = String(e.duration_ms ?? "-").padStart(4);
+      const m = (e.method || "-").padEnd(4);
+      const p = e.path || "-";
+      const ip = e.client_ip || "-";
+      return `${ts}  ${st}  ${ms}ms  ${m} ${p}  ip=${ip}`;
+    }
+
+    return `${ts}  ${ev}  ${(e.raw || "").slice(0, 200)}`;
   }
 
   function fmtLogs(payload) {
     if (!payload || !payload.ok) return `error: ${payload?.error || "unknown"}`;
-    const lines = payload.lines || [];
-    return lines.map(summarizeLogLine).join("\n");
+    const entries = payload.entries || [];
+    const byEvent = payload.summary?.by_event ? JSON.stringify(payload.summary.by_event) : "{}";
+    const head = `count=${payload.count ?? entries.length} events=${byEvent}`;
+    const lines = entries.map(summarizeLogEntry);
+    return [head, "", ...lines].join("\n");
   }
 
   function wireObs() {
