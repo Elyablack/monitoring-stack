@@ -10,6 +10,11 @@ route:
 
   routes:
     - matchers:
+        - severity="demo"
+      receiver: blackhole
+      repeat_interval: 24h
+
+    - matchers:
         - severity="critical"
       receiver: telegram-critical
 
@@ -32,6 +37,8 @@ inhibit_rules:
     equal: ['instance', 'instance_name']
 
 receivers:
+  - name: blackhole
+
   - name: telegram-critical
     webhook_configs:
       - url: http://tg-relay:8080/

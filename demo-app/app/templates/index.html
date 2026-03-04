@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="en" data-app="{{ app_name }}" data-env="{{ env }}">
+<html lang="en" data-app="{{ app_name }}" data-env="{{ env }}" data-theme="terminal">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ app_name }}</title>
-  <link rel="stylesheet" href="/static/app.css" />
-  <script defer src="/static/app.js"></script>
+  <link rel="stylesheet" href="/static/app.css?v=20260304-2" />
+  <script defer src="/static/app.js?v=20260304-2"></script>
 </head>
 
 <body>
@@ -14,14 +14,14 @@
       <div class="brand">
         <div class="title" id="app-name">{{ app_name }}</div>
         <div class="subtitle">
-          Simple service demo: logs → Loki, metrics → Prometheus, alerts → Alertmanager
+          logs → Loki, metrics → Prometheus, alerts → Alertmanager
           <span class="mono">Keys:</span> <span class="mono">t</span> theme,
           <span class="mono">1/2/3</span> light/dark/terminal,
           <span class="mono">?</span> help
         </div>
       </div>
 
-      <div class="powerline">
+      <div class="powerline" id="powerline">
         <div class="seg" id="pl-seg-app">
           <span class="k">app</span><span class="v" id="pl-app">{{ app_name }}</span>
         </div>
@@ -35,66 +35,96 @@
         <div class="seg" id="pl-seg-time">
           <span class="k">time</span><span class="v" id="pl-time">--:--:--</span>
         </div>
-        <!-- theme switcher injects here by app.js -->
+        <!-- theme switch injected by JS -->
       </div>
     </div>
   </header>
 
   <main class="container">
-    <section class="grid">
-      <div class="card">
-        <div class="card-title">Endpoints</div>
+    <section class="layout-2col">
 
-        <div class="row row-head">
-          <div>Method</div>
-          <div>Path</div>
-          <div>Description</div>
-          <div>Open</div>
-        </div>
+      <div class="col-left">
+        <div class="card">
+          <div class="card-title">Traffic generator</div>
 
-        {% for e in endpoints %}
-        <div class="row">
-          <div><span class="pill {% if e.method == 'GET' %}get{% endif %}">{{ e.method }}</span></div>
-          <div class="mono">{{ e.path }}</div>
-          <div>{{ e.descr }}</div>
-          <div><a class="link" href="{{ e.path }}">open</a></div>
-        </div>
-        {% endfor %}
-      </div>
+          <div class="controls">
+            <div class="control-grid">
+              <div>
+                <label for="slow-ms">slow ms</label>
+                <input id="slow-ms" class="input mono" type="number" value="500" min="0" max="30000" />
+              </div>
 
-      <div class="card">
-        <div class="card-title">Generate traffic</div>
+              <div class="btn-row" role="group" aria-label="traffic">
+                <button id="btn-slow" class="btn primary" type="button">run /slow</button>
+                <button id="btn-503" class="btn danger" type="button">run /error 503</button>
+                <button id="btn-metrics" class="btn" type="button">open /metrics</button>
+                <button id="btn-copy" class="btn" type="button">copy curls</button>
+              </div>
+            </div>
 
-        <div class="controls">
-          <div>
-            <label for="slow-ms">slow ms</label>
-            <input id="slow-ms" class="input mono" type="number" value="500" min="0" max="30000" />
-          </div>
-
-          <div class="btn-row">
-            <button id="btn-slow" class="btn primary" type="button">run /slow</button>
-            <button id="btn-503" class="btn danger" type="button">run /error 503</button>
-            <button id="btn-metrics" class="btn" type="button">open /metrics</button>
-            <button id="btn-copy" class="btn" type="button">copy curls</button>
-          </div>
-
-          <div class="output">
-            <div class="hint mono">Recent events (client-side)</div>
-            <pre id="output" class="pre"></pre>
-          </div>
-
-          <div class="hint mono">
-            Keys: t cycle | 1 light | 2 dark | 3 terminal | ? help
+            <div class="output">
+              <div class="hint mono">Recent events (client-side)</div>
+              <pre id="output" class="pre pre-client"></pre>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
 
-    <section class="card">
-      <div class="hint">
-        Tip: trigger <span class="mono">/error?code=503</span> and <span class="mono">/slow?ms=1500</span>, then watch:
-        <span class="mono">Prometheus alerts</span> + <span class="mono">Loki logs</span>.
+        <div class="card" style="margin-top: 18px;">
+          <div class="card-title">Endpoints</div>
+
+          <div class="row row-head">
+            <div>Method</div>
+            <div>Path</div>
+            <div>Description</div>
+            <div>Open</div>
+          </div>
+
+          {% for e in endpoints %}
+          <div class="row">
+            <div><span class="pill {% if e.method == 'GET' %}get{% endif %}">{{ e.method }}</span></div>
+            <div class="mono">{{ e.path }}</div>
+            <div>{{ e.descr }}</div>
+            <div><a class="link" href="{{ e.path }}">open</a></div>
+          </div>
+          {% endfor %}
+        </div>
       </div>
+
+      <div class="col-right">
+        <div class="card sticky-panel">
+          <div class="card-title">Observability</div>
+
+          <div class="obs-grid">
+            <div class="obs-card">
+              <div class="obs-head">
+                <div class="obs-title">Alerts (Alertmanager)</div>
+                <div class="btn-row btn-row-tight" role="group" aria-label="alerts">
+                  <button id="btn-alerts" class="btn" type="button">refresh</button>
+                  <button id="btn-alerts-auto" class="btn" type="button">auto: off</button>
+                </div>
+              </div>
+              <pre id="alerts-out" class="pre pre-alerts">(not loaded)</pre>
+            </div>
+
+            <div class="obs-card">
+              <div class="obs-head">
+                <div class="obs-title">Logs (Loki)</div>
+                <div class="btn-row btn-row-tight" role="group" aria-label="logs">
+                  <button id="btn-logs-buttons" class="btn primary" type="button">buttons</button>
+                  <button id="btn-logs" class="btn" type="button">refresh</button>
+                  <button id="btn-logs-auto" class="btn" type="button">auto: off</button>
+                </div>
+              </div>
+              <pre id="logs-out" class="pre pre-logs">(not loaded)</pre>
+              <div class="hint" style="margin-top: 10px;">
+                Loki shows only button-triggered events (forced_error / forced_slow).
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
     </section>
   </main>
 </body>
