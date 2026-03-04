@@ -10,7 +10,6 @@ promtail/
 caddy/env.prod
 tg-relay/tg.env
 .env
-.env.*
 **/secrets/*
 **/*.pem
 **/*.key
