@@ -20,12 +20,24 @@ concurrency:
   group: tg-relay-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  IMAGE: ghcr.io/elyablack/tg-relay
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      shortsha: ${{ steps.vars.outputs.shortsha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Vars
+        id: vars
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "shortsha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -36,7 +48,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Build (PR)
         if: github.event_name == 'pull_request'
@@ -45,7 +57,9 @@ jobs:
           context: ./tg-relay
           file: ./tg-relay/Dockerfile
           push: false
-          tags: ghcr.io/elyablack/tg-relay:pr-${{ github.event.pull_request.number }}
+          build-args: |
+            APP_VERSION=pr-${{ github.event.pull_request.number }}-${{ steps.vars.outputs.shortsha }}
+          tags: ${{ env.IMAGE }}:pr-${{ github.event.pull_request.number }}
 
       - name: Build and push (main)
         if: github.event_name != 'pull_request'
@@ -54,9 +68,11 @@ jobs:
           context: ./tg-relay
           file: ./tg-relay/Dockerfile
           push: true
+          build-args: |
+            APP_VERSION=sha-${{ steps.vars.outputs.shortsha }}
           tags: |
-            ghcr.io/elyablack/tg-relay:latest
-            ghcr.io/elyablack/tg-relay:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:sha-${{ steps.vars.outputs.shortsha }}
 
   deploy:
     needs: build
@@ -89,12 +105,12 @@ jobs:
 
             rm -f /tmp/tg-relay-deploy-mode
 
-            export TG_RELAY_TAG=latest
+            export TG_RELAY_TAG=sha-${{ needs.build.outputs.shortsha }}
             docker compose pull tg-relay
             docker compose up -d tg-relay
 
             if wait_health; then
-              echo latest > /tmp/tg-relay-deploy-mode
+              echo sha-${{ needs.build.outputs.shortsha }} > /tmp/tg-relay-deploy-mode
               docker compose ps tg-relay
               exit 0
             fi
@@ -129,8 +145,8 @@ jobs:
           echo "mode=$mode" >> "$GITHUB_OUTPUT"
 
   promote_stable:
-    needs: deploy
-    if: ${{ needs.deploy.result == 'success' && needs.deploy.outputs.mode == 'latest' }}
+    needs: [build, deploy]
+    if: ${{ needs.deploy.result == 'success' && startsWith(needs.deploy.outputs.mode, 'sha-') }}
     runs-on: ubuntu-latest
     steps:
       - name: Set up Docker Buildx
@@ -141,13 +157,13 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
 
-      - name: Promote stable tag to current sha
+      - name: Promote stable tag to current sha tag
         run: |
           docker buildx imagetools create \
-            -t ghcr.io/elyablack/tg-relay:stable \
-            ghcr.io/elyablack/tg-relay:${{ github.sha }}
+            -t ${{ env.IMAGE }}:stable \
+            ${{ env.IMAGE }}:sha-${{ needs.build.outputs.shortsha }}
 
   notify:
     needs: [deploy]

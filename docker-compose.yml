@@ -52,8 +52,6 @@ services:
 
   tg-relay:
     image: ghcr.io/elyablack/tg-relay:${TG_RELAY_TAG:-latest}
-    labels:
-      - tag=${TG_RELAY_TAG:-latest}
     container_name: tg-relay
     restart: always
     networks:
@@ -61,11 +59,14 @@ services:
     env_file:
       - ./tg-relay/tg.env
     environment:
-      - PORT=8080
+      PORT: "8080"
+      APP_VERSION: "${TG_RELAY_TAG:-latest}"
     expose:
       - "8080"
+    labels:
+      tag: "${TG_RELAY_TAG:-latest}"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/readyz >/dev/null 2>&1"]
       interval: 10s
       timeout: 3s
       retries: 5
