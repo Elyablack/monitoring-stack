@@ -14,4 +14,7 @@ COPY --chown=appuser:appuser app /app/app
 
 USER appuser
 
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
+
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8081"]
