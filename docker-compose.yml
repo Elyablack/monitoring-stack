@@ -101,8 +101,7 @@ services:
       - -config.file=/etc/promtail/promtail.yml
 
   demo-app:
-    build:
-      context: ./demo-app
+    image: ghcr.io/elyablack/demo-app:${DEMO_APP_TAG:-latest}
     container_name: demo-app
     restart: always
     ports:
@@ -111,6 +110,8 @@ services:
       - monitoring
     env_file:
       - ./demo-app/.env
+    environment:
+      APP_VERSION: "${DEMO_APP_TAG:-latest}"
     healthcheck:
       test:
         - CMD
