@@ -112,6 +112,7 @@ services:
       - ./demo-app/.env
     environment:
       APP_VERSION: "${DEMO_APP_TAG:-latest}"
+      READY_URLS: "http://loki:3100/ready,http://alertmanager:9093/-/ready"
     healthcheck:
       test:
         - CMD
