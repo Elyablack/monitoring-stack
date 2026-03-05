@@ -54,6 +54,8 @@ def create_app() -> FastAPI:
             "env": settings.env,
             "endpoints": [
                 {"name": "health", "method": "GET", "path": "/healthz", "descr": "healthcheck"},
+                {"name": "ready", "method": "GET", "path": "/readyz", "descr": "readiness (deps check)"},
+                {"name": "version", "method": "GET", "path": "/version", "descr": "build version"},
                 {"name": "metrics", "method": "GET", "path": "/metrics", "descr": "Prometheus scrape"},
                 {"name": "slow", "method": "GET", "path": "/slow?ms=500", "descr": "latency demo"},
                 {"name": "error", "method": "GET", "path": "/error?code=503", "descr": "error demo"},
@@ -66,6 +68,37 @@ def create_app() -> FastAPI:
     @app.get("/healthz", response_class=PlainTextResponse)
     async def healthz():
         return "ok"
+
+    @app.get("/version", response_class=PlainTextResponse)
+    async def version():
+        return settings.app_version
+
+    @app.get("/readyz", response_class=PlainTextResponse)
+    async def readyz():
+        urls = settings.ready_urls
+        if not urls:
+            return "READY\n"
+
+        async def _check(url: str) -> tuple[str, bool, str]:
+            try:
+                r = await app.state.http.get(url, timeout=2.0)
+                ok = 200 <= r.status_code < 400
+                return url, ok, f"http={r.status_code}"
+            except Exception as e:
+                return url, False, str(e)
+
+        results = await asyncio.gather(*(_check(u) for u in urls))
+        bad = [(u, msg) for (u, ok, msg) in results if not ok]
+
+        if bad:
+            details = "\n".join([f"- {u}: {msg}" for (u, msg) in bad])
+            return Response(
+                f"NOT READY\n{details}\n",
+                status_code=503,
+                media_type="text/plain",
+            )
+
+        return "READY\n"
 
     @app.get("/metrics")
     async def metrics_endpoint():
