@@ -34,18 +34,6 @@ groups:
           description: "Disk free < 10% for 10m on {{ $labels.instance_name }} ({{ $labels.instance }}), mount={{ $labels.mountpoint }}."
           runbook_url: "runbook:disk"
 
-      - alert: DiskWillFillIn24h
-        expr: |
-          (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} /
-           clamp_min(rate(node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}[6h]) * -1, 1)) < 86400
-        for: 30m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Disk will fill in < 24h ({{ $labels.instance_name }})"
-          description: "At current rate, FS may fill within 24h on {{ $labels.instance_name }} ({{ $labels.instance }}), mount={{ $labels.mountpoint }}."
-          runbook_url: "runbook:disk-growth"
-
       - alert: HostMemoryPressure
         expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
         for: 10m
@@ -76,6 +64,7 @@ groups:
         annotations:
           summary: "demo-app is down ({{ $labels.instance_name }})"
           description: "Prometheus cannot scrape demo-app for 1m. target={{ $labels.instance }}"
+          runbook_url: "runbook:demo-app-down"
 
       - alert: DemoAppHigh5xxRate
         expr: |
@@ -90,6 +79,7 @@ groups:
         annotations:
           summary: "demo-app high 5xx rate"
           description: "5xx ratio > 5% for 2m (service=demo-app)."
+          runbook_url: "runbook:demo-app-5xx"
 
       - alert: DemoAppHighP95Latency
         expr: |
@@ -97,12 +87,15 @@ groups:
             0.95,
             sum by (le) (rate(http_request_duration_seconds_bucket{service="demo-app"}[5m]))
           ) > 0.5
+          and
+          sum(rate(http_requests_total{service="demo-app"}[5m])) > 1
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: "demo-app p95 latency high"
-          description: "p95 latency > 0.5s for 5m (service=demo-app)."
+          description: "p95 latency > 0.5s for 5m with request rate > 1 req/s (service=demo-app)."
+          runbook_url: "runbook:demo-app-latency"
 
       - alert: DemoAppHighInflight
         expr: http_inflight_requests{service="demo-app"} > 20
@@ -112,6 +105,7 @@ groups:
         annotations:
           summary: "demo-app high inflight requests"
           description: "In-flight requests > 20 for 2m (service=demo-app)."
+          runbook_url: "runbook:demo-app-inflight"
 
       - alert: DemoAppButtonError503
         expr: increase(app_forced_errors_total{service="demo-app",code="503"}[1m]) > 0
@@ -121,6 +115,8 @@ groups:
         annotations:
           summary: "demo-app: button-generated 503"
           description: "Someone triggered /error?code=503 in the last 1m."
+          runbook_url: "runbook:demo-button-503"
+
 
       - alert: DemoAppButtonSlow
         expr: increase(app_forced_latency_total{service="demo-app"}[1m]) > 0
@@ -130,3 +126,4 @@ groups:
         annotations:
           summary: "demo-app: button-generated slow"
           description: "Someone triggered /slow in the last 1m."
+          runbook_url: "runbook:demo-button-slow"
