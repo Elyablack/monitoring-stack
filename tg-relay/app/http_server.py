@@ -23,8 +23,8 @@ def make_handler(settings: Settings, tg: TelegramClient) -> type[BaseHTTPRequest
 
             body = self.rfile.read(length) if length else b"{}"
 
-            _, alerts = parse_payload(body)
-            msg = format_alerts_message(alerts, max_alerts=settings.max_alerts)
+            payload, alerts = parse_payload(body)
+            msg = format_alerts_message(payload, max_alerts=settings.max_alerts)
             msg = truncate_message(msg, settings.max_msg)
 
             log(
@@ -77,7 +77,7 @@ def make_handler(settings: Settings, tg: TelegramClient) -> type[BaseHTTPRequest
                 self.wfile.write((settings.version + "\n").encode("utf-8"))
                 return
 
-            if self.path in ("/",):
+            if self.path == "/":
                 self.send_response(200)
                 self.end_headers()
                 self.wfile.write(b"tg-relay\n")
