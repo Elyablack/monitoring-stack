@@ -15,6 +15,11 @@ route:
       repeat_interval: 24h
 
     - matchers:
+        - severity="test"
+      receiver: telegram-test
+      repeat_interval: 1h
+
+    - matchers:
         - severity="critical"
       receiver: telegram-critical
 
@@ -22,11 +27,6 @@ route:
         - severity="warning"
       receiver: telegram-warning
       repeat_interval: 12h
-
-    - matchers:
-        - severity="test"
-      receiver: telegram-test
-      repeat_interval: 1h
 
 inhibit_rules:
   - source_matchers:
