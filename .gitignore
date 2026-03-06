@@ -4,6 +4,7 @@ grafana/
 alertmanager-data/
 loki-data
 promtail/
+promtail-positions/
 **/*-data/
 
 # secrets
