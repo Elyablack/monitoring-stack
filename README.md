@@ -62,7 +62,9 @@ The demo exposes endpoints used to trigger monitoring scenarios and alerts.
 
 Monitoring architecture including metrics, logs and alerting pipeline.
 
-![Architecture](docs/architecture.png)
+<p align="center">
+  <img src="docs/architecture.png" width="500">
+</p>
 
 ---
 
