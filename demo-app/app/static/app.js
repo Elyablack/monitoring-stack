@@ -1,6 +1,6 @@
 (function () {
   const THEME_KEY = "demoapp_theme";
-  const themes = ["light", "dark", "terminal"];
+  const themes = ["terminal", "light"]; // only 2 themes
 
   function $(sel) { return document.querySelector(sel); }
   function el(tag, cls, text) {
@@ -22,37 +22,37 @@
     toast._tmr = setTimeout(() => t.classList.remove("on"), 900);
   }
 
+  function themeIcon(theme) {
+    return theme === "light" ? "☀️" : "🌙";
+  }
+
   function applyTheme(t) {
     const theme = themes.includes(t) ? t : "terminal";
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem(THEME_KEY, theme);
-    document.querySelectorAll(".theme-btn").forEach((b) => {
-      b.classList.toggle("active", b.dataset.theme === theme);
-    });
+
+    const icon = $("#pl-theme-icon");
+    if (icon) icon.textContent = themeIcon(theme);
+
+    const btn = $("#pl-theme-btn");
+    if (btn) btn.setAttribute("aria-label", `Theme: ${theme}. Click to toggle.`);
   }
 
-  function cycleTheme() {
+  function toggleTheme() {
     const cur = document.documentElement.getAttribute("data-theme") || "terminal";
-    const i = themes.indexOf(cur);
-    applyTheme(themes[(i + 1) % themes.length]);
-    toast(`theme=${document.documentElement.getAttribute("data-theme")}`);
+    const next = cur === "terminal" ? "light" : "terminal";
+    applyTheme(next);
+    toast(`theme=${next}`);
   }
 
-  function ensureThemeSwitch(host) {
-    const wrap = el("div", "theme-switch");
-    const buttons = [
-      { theme: "light", label: "1:light" },
-      { theme: "dark", label: "2:dark" },
-      { theme: "terminal", label: "3:term" },
-    ];
-    for (const b of buttons) {
-      const btn = el("button", "theme-btn", b.label);
-      btn.type = "button";
-      btn.dataset.theme = b.theme;
-      btn.addEventListener("click", () => applyTheme(b.theme));
-      wrap.appendChild(btn);
-    }
-    host.appendChild(wrap);
+  function ensureThemeButton(host) {
+    const btn = el("button", "seg seg-btn");
+    btn.id = "pl-theme-btn";
+    btn.type = "button";
+    btn.title = "Toggle theme (t)";
+    btn.innerHTML = `<span class="theme-icon v" id="pl-theme-icon">🌙</span>`;
+    btn.addEventListener("click", () => toggleTheme());
+    host.appendChild(btn);
   }
 
   function flashBtn(btn) {
@@ -191,15 +191,9 @@
       if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
 
       if (e.key === "t" || e.key === "T") {
-        cycleTheme();
-      } else if (e.key === "1") {
-        applyTheme("light"); toast("theme=light");
-      } else if (e.key === "2") {
-        applyTheme("dark"); toast("theme=dark");
-      } else if (e.key === "3") {
-        applyTheme("terminal"); toast("theme=terminal");
+        toggleTheme();
       } else if (e.key === "?") {
-        toast("keys: t cycle | 1 light | 2 dark | 3 terminal");
+        toast("keys: t toggle theme | ? help");
       }
     });
   }
@@ -226,8 +220,8 @@
       pl.appendChild(seg("pl-seg-time", `<span class="k">time</span><span class="v" id="pl-time">--:--:--</span>`));
     }
 
-    if (!pl.querySelector(".theme-switch")) {
-      ensureThemeSwitch(pl);
+    if (!$("#pl-theme-btn")) {
+      ensureThemeButton(pl);
     }
   }
 

@@ -1,12 +1,11 @@
-<!-- file: app/templates/index.html -->
 <!doctype html>
 <html lang="en" data-app="{{ app_name }}" data-env="{{ env }}" data-theme="terminal">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ app_name }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260304-3" />
-  <script defer src="/static/app.js?v=20260304-3"></script>
+  <link rel="stylesheet" href="/static/app.css?v=20260308-2" />
+  <script defer src="/static/app.js?v=20260308-2"></script>
 </head>
 
 <body>
@@ -16,8 +15,7 @@
         <div class="title" id="app-name">{{ app_name }}</div>
         <div class="subtitle">
           logs → Loki, metrics → Prometheus, alerts → Alertmanager
-          <span class="mono">Keys:</span> <span class="mono">t</span> theme,
-          <span class="mono">1/2/3</span> light/dark/terminal,
+          <span class="mono">Keys:</span> <span class="mono">t</span> toggle theme (terminal/light),
           <span class="mono">?</span> help
         </div>
       </div>
@@ -36,7 +34,7 @@
         <div class="seg" id="pl-seg-time">
           <span class="k">time</span><span class="v" id="pl-time">--:--:--</span>
         </div>
-        <!-- theme switch injected by JS -->
+
       </div>
     </div>
   </header>
@@ -46,7 +44,7 @@
 
       <div class="col-left">
         <div class="card">
-          <div class="card-title">Traffic generator</div>
+          <div class="card-title">1. Traffic generator</div>
 
           <div class="controls">
             <div class="control-grid">
@@ -71,7 +69,7 @@
         </div>
 
         <div class="card" style="margin-top: 18px;">
-          <div class="card-title">Endpoints</div>
+          <div class="card-title">2. Endpoints</div>
 
           <div class="row row-head">
             <div>Method</div>
@@ -93,7 +91,7 @@
 
       <div class="col-right">
         <div class="card sticky-panel">
-          <div class="card-title">Observability</div>
+          <div class="card-title">3. Observability</div>
 
           <div class="obs-grid">
             <div class="obs-card">

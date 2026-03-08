@@ -15,39 +15,23 @@
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   --sans: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 
-  --base: 16px;
+  --base: 18px;
 }
 
-/* Light */
+/* Light (terminal-on-white) */
 html[data-theme="light"] {
-  --bg: #f3f5f8;
+  --bg: #fbfdff;
   --panel: #ffffff;
   --text: #0b1220;
-  --muted: #55657a;
-  --border: #dbe3ee;
+  --muted: #415164;
+  --border: rgba(2, 6, 23, 0.14);
 
-  --primary: #2563eb;
-  --danger: #dc2626;
-  --ok: #16a34a;
-  --warn: #d97706;
+  --primary: #2ea043; /* terminal green */
+  --danger: #b42318;
+  --ok: #2ea043;
+  --warn: #b54708;
 
-  --shadow: 0 10px 26px rgba(2, 6, 23, 0.08);
-}
-
-/* Dark */
-html[data-theme="dark"] {
-  --bg: #0b1220;
-  --panel: #0f172a;
-  --text: #e5e7eb;
-  --muted: #94a3b8;
-  --border: rgba(148, 163, 184, 0.18);
-
-  --primary: #60a5fa;
-  --danger: #f87171;
-  --ok: #34d399;
-  --warn: #fbbf24;
-
-  --shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  --shadow: 0 14px 34px rgba(2, 6, 23, 0.10);
 }
 
 /* Terminal */
@@ -76,6 +60,9 @@ body {
   font-size: var(--base);
 }
 
+html[data-theme="terminal"] body,
+html[data-theme="light"] body { font-family: var(--mono); }
+
 .container {
   max-width: 1240px;
   margin: 0 auto;
@@ -95,13 +82,13 @@ body {
 .brand { display: grid; gap: 6px; }
 
 .title {
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 800;
   letter-spacing: 0.2px;
 }
 
 .subtitle {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--muted);
   line-height: 1.35;
 }
@@ -124,7 +111,7 @@ body {
   border-right: 0;
   background: color-mix(in srgb, var(--panel) 92%, transparent);
   color: var(--text);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1;
   font-family: var(--mono);
 }
@@ -151,31 +138,24 @@ body {
 .dot.bad  { background: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent); }
 .dot.warn { background: var(--warn); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 18%, transparent); }
 
-/* theme switch */
+/* theme toggle button */
 
-.theme-switch {
-  display: inline-flex;
-  gap: 8px;
-  padding: 4px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--panel) 92%, transparent);
-  margin-left: 10px;
-}
-
-.theme-btn {
-  padding: 7px 10px;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--muted);
+.seg-btn {
   cursor: pointer;
-  font-size: 13px;
-  font-family: var(--mono);
+  user-select: none;
+  border-right: 1px solid var(--border);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
 }
-
-.theme-btn:hover { background: color-mix(in srgb, var(--panel) 70%, transparent); color: var(--text); }
-.theme-btn.active { border-color: var(--border); background: color-mix(in srgb, var(--panel) 80%, transparent); color: var(--text); }
+.seg-btn:hover { background: color-mix(in srgb, var(--panel) 78%, transparent); }
+.seg-btn:active { transform: translateY(1px); }
+.seg-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 65%, transparent);
+  outline-offset: 2px;
+}
+.theme-icon {
+  font-size: 16px;
+  line-height: 1;
+}
 
 /* layout */
 
@@ -214,12 +194,12 @@ body {
 .card-title {
   font-weight: 800;
   margin-bottom: 12px;
-  font-size: 15px;
+  font-size: 16px;
   letter-spacing: 0.2px;
 }
 
 .hint {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--muted);
   line-height: 1.35;
 }
@@ -253,7 +233,7 @@ body {
   border-radius: 999px;
   border: 1px solid var(--border);
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--muted);
   background: color-mix(in srgb, var(--panel) 92%, transparent);
@@ -293,7 +273,7 @@ label {
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--border);
-  font-size: 15px;
+  font-size: 16px;
   background: color-mix(in srgb, var(--panel) 92%, transparent);
   color: var(--text);
 }
@@ -317,7 +297,7 @@ label {
   background: color-mix(in srgb, var(--panel) 85%, transparent);
   color: var(--text);
   cursor: pointer;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 700;
   font-family: var(--mono);
   position: relative;
@@ -347,7 +327,7 @@ label {
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--panel) 88%, transparent);
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 13.5px;
   overflow: auto;
   white-space: pre;
   line-height: 1.35;
