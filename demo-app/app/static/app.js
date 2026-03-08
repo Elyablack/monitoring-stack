@@ -1,6 +1,6 @@
 (function () {
   const THEME_KEY = "demoapp_theme";
-  const themes = ["terminal", "light"]; // only 2 themes
+  const themes = ["terminal", "light"];
 
   function $(sel) { return document.querySelector(sel); }
   function el(tag, cls, text) {
@@ -319,8 +319,14 @@
     const btnLogs = $("#btn-logs");
     const btnLogsAuto = $("#btn-logs-auto");
 
-    let alertsAuto = false;
-    let logsAuto = false;
+    const ALERTS_BOOT_AUTO_MS = 30_000;
+    const LOGS_BOOT_AUTO_MS = 10_000;
+
+    const ALERTS_AUTO_INTERVAL_MS = 3_000;
+    const LOGS_AUTO_INTERVAL_MS = 3_000;
+
+    let alertsAuto = true;
+    let logsAuto = true;
     let logsMode = "buttons";
     let tAlerts = null;
     let tLogs = null;
@@ -349,6 +355,22 @@
       if (btnLogsButtons) btnLogsButtons.classList.toggle("primary", logsMode === "buttons");
     }
 
+    function stopAlertsAuto(reason) {
+      alertsAuto = false;
+      if (tAlerts) clearInterval(tAlerts);
+      tAlerts = null;
+      setAutoBtn(btnAlertsAuto, false);
+      if (reason) appendEvent(reason);
+    }
+
+    function stopLogsAuto(reason) {
+      logsAuto = false;
+      if (tLogs) clearInterval(tLogs);
+      tLogs = null;
+      setAutoBtn(btnLogsAuto, false);
+      if (reason) appendEvent(reason);
+    }
+
     if (btnAlerts) {
       btnAlerts.addEventListener("click", async () => {
         flashBtn(btnAlerts);
@@ -362,7 +384,7 @@
         alertsAuto = !alertsAuto;
         setAutoBtn(btnAlertsAuto, alertsAuto);
         if (tAlerts) clearInterval(tAlerts);
-        tAlerts = alertsAuto ? setInterval(refreshAlerts, 10000) : null;
+        tAlerts = alertsAuto ? setInterval(refreshAlerts, ALERTS_AUTO_INTERVAL_MS) : null;
         if (alertsAuto) await refreshAlerts();
       });
     }
@@ -389,17 +411,24 @@
         logsAuto = !logsAuto;
         setAutoBtn(btnLogsAuto, logsAuto);
         if (tLogs) clearInterval(tLogs);
-        tLogs = logsAuto ? setInterval(refreshLogs, 3000) : null;
+        tLogs = logsAuto ? setInterval(refreshLogs, LOGS_AUTO_INTERVAL_MS) : null;
         if (logsAuto) await refreshLogs();
       });
     }
 
     setModeBtns();
-    setAutoBtn(btnAlertsAuto, alertsAuto);
-    setAutoBtn(btnLogsAuto, logsAuto);
+
+    setAutoBtn(btnAlertsAuto, true);
+    setAutoBtn(btnLogsAuto, true);
 
     refreshAlerts();
     refreshLogs();
+
+    tAlerts = setInterval(refreshAlerts, ALERTS_AUTO_INTERVAL_MS);
+    tLogs = setInterval(refreshLogs, LOGS_AUTO_INTERVAL_MS);
+
+    setTimeout(() => stopAlertsAuto("OBS alerts auto stopped (boot window ended)"), ALERTS_BOOT_AUTO_MS);
+    setTimeout(() => stopLogsAuto("OBS logs auto stopped (boot window ended)"), LOGS_BOOT_AUTO_MS);
   }
 
   document.addEventListener("DOMContentLoaded", async () => {
@@ -414,6 +443,6 @@
     wireObs();
     await refreshStatusLoop();
 
-    appendEvent("ready (press ? for keys)");
+    appendEvent("ready");
   });
 })();

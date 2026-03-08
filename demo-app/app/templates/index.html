@@ -4,19 +4,24 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ app_name }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260308-2" />
-  <script defer src="/static/app.js?v=20260308-2"></script>
+  <link rel="stylesheet" href="/static/app.css?v=20260308-3" />
+  <script defer src="/static/app.js?v=20260308-3"></script>
 </head>
 
 <body>
   <header class="container">
     <div class="topbar">
       <div class="brand">
-        <div class="title" id="app-name">{{ app_name }}</div>
+        <div
+          class="title"
+          id="app-name"
+          style="font-family: var(--mono); font-weight: 900; letter-spacing: 0.6px;"
+        >
+          {{ app_name }}
+        </div>
+
         <div class="subtitle">
           logs → Loki, metrics → Prometheus, alerts → Alertmanager
-          <span class="mono">Keys:</span> <span class="mono">t</span> toggle theme (terminal/light),
-          <span class="mono">?</span> help
         </div>
       </div>
 
@@ -34,7 +39,7 @@
         <div class="seg" id="pl-seg-time">
           <span class="k">time</span><span class="v" id="pl-time">--:--:--</span>
         </div>
-
+        <!-- theme switch injected by JS -->
       </div>
     </div>
   </header>
@@ -44,7 +49,10 @@
 
       <div class="col-left">
         <div class="card">
-          <div class="card-title">1. Traffic generator</div>
+          <div class="card-title">
+            <span style="font-size: 20px; font-weight: 950; letter-spacing: 0.3px;">1.</span>
+            <span style="margin-left: 6px;">Traffic generator</span>
+          </div>
 
           <div class="controls">
             <div class="control-grid">
@@ -69,7 +77,10 @@
         </div>
 
         <div class="card" style="margin-top: 18px;">
-          <div class="card-title">2. Endpoints</div>
+          <div class="card-title">
+            <span style="font-size: 20px; font-weight: 950; letter-spacing: 0.3px;">2.</span>
+            <span style="margin-left: 6px;">Endpoints</span>
+          </div>
 
           <div class="row row-head">
             <div>Method</div>
@@ -91,12 +102,17 @@
 
       <div class="col-right">
         <div class="card sticky-panel">
-          <div class="card-title">3. Observability</div>
+          <div class="card-title">
+            <span style="font-size: 20px; font-weight: 950; letter-spacing: 0.3px;">3.</span>
+            <span style="margin-left: 6px;">Observability</span>
+          </div>
 
           <div class="obs-grid">
             <div class="obs-card">
               <div class="obs-head">
-                <div class="obs-title">Alerts (Alertmanager)</div>
+                <div class="obs-title" style="font-size: 13px; font-weight: 800; opacity: 0.95;">
+                  Alerts (Alertmanager)
+                </div>
                 <div class="btn-row btn-row-tight" role="group" aria-label="alerts">
                   <button id="btn-alerts" class="btn" type="button">refresh</button>
                   <button id="btn-alerts-auto" class="btn" type="button">auto: off</button>
@@ -107,7 +123,9 @@
 
             <div class="obs-card">
               <div class="obs-head">
-                <div class="obs-title">Logs (Loki)</div>
+                <div class="obs-title" style="font-size: 13px; font-weight: 800; opacity: 0.95;">
+                  Logs (Loki)
+                </div>
                 <div class="btn-row btn-row-tight" role="group" aria-label="logs">
                   <button id="btn-logs-buttons" class="btn primary" type="button">buttons</button>
                   <button id="btn-logs" class="btn" type="button">refresh</button>
