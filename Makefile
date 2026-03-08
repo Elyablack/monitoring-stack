@@ -8,8 +8,8 @@ caddy:
 	$(SUDO) systemctl reload caddy
 
 fail2ban:
-	$(SUDO) install -o root -g root -m 0644 fail2ban/filter.d/caddy-404.conf /etc/fail2ban/filter.d/caddy-404.conf
-	$(SUDO) install -o root -g root -m 0644 fail2ban/jail.d/caddy-404.local /etc/fail2ban/jail.d/caddy-404.local
+	$(SUDO) install -o root -g root -m 0644 fail2ban/filter.d/caddy-401.conf /etc/fail2ban/filter.d/caddy-401.conf
+	$(SUDO) install -o root -g root -m 0644 fail2ban/jail.d/grafana-401.local /etc/fail2ban/jail.d/grafana-401.local
 	$(SUDO) systemctl restart fail2ban
 
 deploy: caddy fail2ban
