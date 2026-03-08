@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ app_name }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260308-3" />
-  <script defer src="/static/app.js?v=20260308-3"></script>
+  <link rel="stylesheet" href="/static/app.css?v=20260308-4" />
+  <script defer src="/static/app.js?v=20260308-4"></script>
 </head>
 
 <body>
@@ -49,10 +49,7 @@
 
       <div class="col-left">
         <div class="card">
-          <div class="card-title">
-            <span style="font-size: 20px; font-weight: 950; letter-spacing: 0.3px;">1.</span>
-            <span style="margin-left: 6px;">Traffic generator</span>
-          </div>
+          <div class="card-title step-title">1. Traffic generator</div>
 
           <div class="controls">
             <div class="control-grid">
@@ -77,10 +74,7 @@
         </div>
 
         <div class="card" style="margin-top: 18px;">
-          <div class="card-title">
-            <span style="font-size: 20px; font-weight: 950; letter-spacing: 0.3px;">2.</span>
-            <span style="margin-left: 6px;">Endpoints</span>
-          </div>
+          <div class="card-title step-title">2. Endpoints</div>
 
           <div class="row row-head">
             <div>Method</div>
@@ -90,7 +84,7 @@
           </div>
 
           {% for e in endpoints %}
-          <div class="row">
+          <div class="row row-body">
             <div><span class="pill {% if e.method == 'GET' %}get{% endif %}">{{ e.method }}</span></div>
             <div class="mono">{{ e.path }}</div>
             <div>{{ e.descr }}</div>
@@ -102,17 +96,12 @@
 
       <div class="col-right">
         <div class="card sticky-panel">
-          <div class="card-title">
-            <span style="font-size: 20px; font-weight: 950; letter-spacing: 0.3px;">3.</span>
-            <span style="margin-left: 6px;">Observability</span>
-          </div>
+          <div class="card-title step-title">3. Observability</div>
 
           <div class="obs-grid">
             <div class="obs-card">
               <div class="obs-head">
-                <div class="obs-title" style="font-size: 13px; font-weight: 800; opacity: 0.95;">
-                  Alerts (Alertmanager)
-                </div>
+                <div class="obs-title obs-title-lg">Alerts (Alertmanager)</div>
                 <div class="btn-row btn-row-tight" role="group" aria-label="alerts">
                   <button id="btn-alerts" class="btn" type="button">refresh</button>
                   <button id="btn-alerts-auto" class="btn" type="button">auto: off</button>
@@ -123,9 +112,7 @@
 
             <div class="obs-card">
               <div class="obs-head">
-                <div class="obs-title" style="font-size: 13px; font-weight: 800; opacity: 0.95;">
-                  Logs (Loki)
-                </div>
+                <div class="obs-title obs-title-lg">Logs (Loki)</div>
                 <div class="btn-row btn-row-tight" role="group" aria-label="logs">
                   <button id="btn-logs-buttons" class="btn primary" type="button">buttons</button>
                   <button id="btn-logs" class="btn" type="button">refresh</button>

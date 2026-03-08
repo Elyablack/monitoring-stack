@@ -189,12 +189,7 @@
   function hotkeys() {
     window.addEventListener("keydown", (e) => {
       if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
-
-      if (e.key === "t" || e.key === "T") {
-        toggleTheme();
-      } else if (e.key === "?") {
-        toast("keys: t toggle theme | ? help");
-      }
+      if (e.key === "t" || e.key === "T") toggleTheme();
     });
   }
 
@@ -220,9 +215,7 @@
       pl.appendChild(seg("pl-seg-time", `<span class="k">time</span><span class="v" id="pl-time">--:--:--</span>`));
     }
 
-    if (!$("#pl-theme-btn")) {
-      ensureThemeButton(pl);
-    }
+    if (!$("#pl-theme-btn")) ensureThemeButton(pl);
   }
 
   async function refreshStatusLoop() {
@@ -319,14 +312,11 @@
     const btnLogs = $("#btn-logs");
     const btnLogsAuto = $("#btn-logs-auto");
 
-    const ALERTS_BOOT_AUTO_MS = 30_000;
-    const LOGS_BOOT_AUTO_MS = 10_000;
+    const ALERTS_AUTO_INTERVAL_MS = 30_000;
+    const LOGS_AUTO_INTERVAL_MS = 30_000;
 
-    const ALERTS_AUTO_INTERVAL_MS = 3_000;
-    const LOGS_AUTO_INTERVAL_MS = 3_000;
-
-    let alertsAuto = true;
-    let logsAuto = true;
+    let alertsAuto = false;
+    let logsAuto = false;
     let logsMode = "buttons";
     let tAlerts = null;
     let tLogs = null;
@@ -353,22 +343,6 @@
 
     function setModeBtns() {
       if (btnLogsButtons) btnLogsButtons.classList.toggle("primary", logsMode === "buttons");
-    }
-
-    function stopAlertsAuto(reason) {
-      alertsAuto = false;
-      if (tAlerts) clearInterval(tAlerts);
-      tAlerts = null;
-      setAutoBtn(btnAlertsAuto, false);
-      if (reason) appendEvent(reason);
-    }
-
-    function stopLogsAuto(reason) {
-      logsAuto = false;
-      if (tLogs) clearInterval(tLogs);
-      tLogs = null;
-      setAutoBtn(btnLogsAuto, false);
-      if (reason) appendEvent(reason);
     }
 
     if (btnAlerts) {
@@ -417,18 +391,11 @@
     }
 
     setModeBtns();
-
-    setAutoBtn(btnAlertsAuto, true);
-    setAutoBtn(btnLogsAuto, true);
+    setAutoBtn(btnAlertsAuto, alertsAuto);
+    setAutoBtn(btnLogsAuto, logsAuto);
 
     refreshAlerts();
     refreshLogs();
-
-    tAlerts = setInterval(refreshAlerts, ALERTS_AUTO_INTERVAL_MS);
-    tLogs = setInterval(refreshLogs, LOGS_AUTO_INTERVAL_MS);
-
-    setTimeout(() => stopAlertsAuto("OBS alerts auto stopped (boot window ended)"), ALERTS_BOOT_AUTO_MS);
-    setTimeout(() => stopLogsAuto("OBS logs auto stopped (boot window ended)"), LOGS_BOOT_AUTO_MS);
   }
 
   document.addEventListener("DOMContentLoaded", async () => {
