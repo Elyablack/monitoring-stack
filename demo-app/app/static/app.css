@@ -26,7 +26,7 @@ html[data-theme="light"] {
   --muted: #415164;
   --border: rgba(2, 6, 23, 0.14);
 
-  --primary: #2ea043; /* terminal green */
+  --primary: #2ea043;
   --danger: #b42318;
   --ok: #2ea043;
   --warn: #b54708;
@@ -152,10 +152,7 @@ html[data-theme="light"] body { font-family: var(--mono); }
   outline: 2px solid color-mix(in srgb, var(--primary) 65%, transparent);
   outline-offset: 2px;
 }
-.theme-icon {
-  font-size: 16px;
-  line-height: 1;
-}
+.theme-icon { font-size: 16px; line-height: 1; }
 
 /* layout */
 
@@ -191,10 +188,10 @@ html[data-theme="light"] body { font-family: var(--mono); }
   z-index: 0;
 }
 
-.card-title {
-  font-weight: 800;
+.card-title.step-title {
+  font-weight: 950;
   margin-bottom: 12px;
-  font-size: 16px;
+  font-size: 20px;
   letter-spacing: 0.2px;
 }
 
@@ -219,10 +216,15 @@ html[data-theme="light"] body { font-family: var(--mono); }
 
 .row-head {
   border-top: 0;
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 900;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
+}
+
+.row-body {
+  font-size: 13px;
 }
 
 .pill {
@@ -233,8 +235,8 @@ html[data-theme="light"] body { font-family: var(--mono); }
   border-radius: 999px;
   border: 1px solid var(--border);
   font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 12.5px;
+  font-weight: 800;
   color: var(--muted);
   background: color-mix(in srgb, var(--panel) 92%, transparent);
 }
@@ -278,7 +280,7 @@ label {
   color: var(--text);
 }
 
-/* BUTTONS: no “slip”, always clickable */
+/* BUTTONS */
 .btn-row {
   display: flex;
   flex-wrap: wrap;
@@ -363,6 +365,10 @@ label {
   font-family: var(--mono);
   font-weight: 900;
   letter-spacing: 0.02em;
+}
+
+.obs-title-lg {
+  font-size: 16px;
 }
 
 /* toast */
