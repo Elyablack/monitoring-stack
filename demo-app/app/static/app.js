@@ -315,8 +315,8 @@
     const ALERTS_AUTO_INTERVAL_MS = 30_000;
     const LOGS_AUTO_INTERVAL_MS = 30_000;
 
-    let alertsAuto = false;
-    let logsAuto = false;
+    let alertsAuto = true;
+    let logsAuto = true;
     let logsMode = "buttons";
     let tAlerts = null;
     let tLogs = null;
@@ -396,6 +396,8 @@
 
     refreshAlerts();
     refreshLogs();
+    if (alertsAuto) tAlerts = setInterval(refreshAlerts, ALERTS_AUTO_INTERVAL_MS);
+    if (logsAuto) tLogs = setInterval(refreshLogs, LOGS_AUTO_INTERVAL_MS);
   }
 
   document.addEventListener("DOMContentLoaded", async () => {

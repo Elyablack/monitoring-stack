@@ -224,7 +224,7 @@ html[data-theme="light"] body { font-family: var(--mono); }
 }
 
 .row-body {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .pill {
