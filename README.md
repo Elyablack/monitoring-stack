@@ -2,7 +2,20 @@
 
 ![Validate Configs](https://github.com/Elyablack/monitoring-stack/actions/workflows/validate-configs.yml/badge.svg)
 
-Production-style monitoring stack built with **Prometheus, Loki and Grafana**.
+![Linux](https://img.shields.io/badge/-Linux-464646?style=flat&logo=linux&logoColor=56C0C0&color=008080)
+![Docker Compose](https://img.shields.io/badge/-Docker_Compose-464646?style=flat&logo=docker&logoColor=56C0C0&color=008080)
+![Prometheus](https://img.shields.io/badge/-Prometheus-464646?style=flat&logo=prometheus&logoColor=56C0C0&color=008080)
+![Grafana](https://img.shields.io/badge/-Grafana-464646?style=flat&logo=grafana&logoColor=56C0C0&color=008080)
+![Loki](https://img.shields.io/badge/-Loki-464646?style=flat&logo=grafana&logoColor=56C0C0&color=008080)
+![Promtail](https://img.shields.io/badge/-Promtail-464646?style=flat&logo=grafana&logoColor=56C0C0&color=008080)
+![Alertmanager](https://img.shields.io/badge/-Alertmanager-464646?style=flat&logo=prometheus&logoColor=56C0C0&color=008080)
+![Caddy](https://img.shields.io/badge/-Caddy-464646?style=flat&logo=caddy&logoColor=56C0C0&color=008080)
+![Fail2ban](https://img.shields.io/badge/-Fail2ban-464646?style=flat&logo=linux&logoColor=56C0C0&color=008080)
+![Python](https://img.shields.io/badge/-Python-464646?style=flat&logo=python&logoColor=56C0C0&color=008080)
+![FastAPI](https://img.shields.io/badge/-FastAPI-464646?style=flat&logo=fastapi&logoColor=56C0C0&color=008080)
+![Telegram](https://img.shields.io/badge/-Telegram-464646?style=flat&logo=telegram&logoColor=56C0C0&color=008080)
+
+Production-style **observability and monitoring stack** built with **Prometheus, Loki and Grafana**.
 
 This repository demonstrates a complete observability pipeline including:
 
@@ -43,28 +56,27 @@ The demo exposes endpoints used to trigger monitoring scenarios and alerts.
 - **Telegram** — alert notifications via `tg-relay`
 - **Linux / Ubuntu** — deployment environment
 
-![Linux](https://img.shields.io/badge/-Linux-464646?style=flat&logo=linux&logoColor=56C0C0&color=008080)
-![Docker Compose](https://img.shields.io/badge/-Docker_Compose-464646?style=flat&logo=docker&logoColor=56C0C0&color=008080)
-![Prometheus](https://img.shields.io/badge/-Prometheus-464646?style=flat&logo=prometheus&logoColor=56C0C0&color=008080)
-![Grafana](https://img.shields.io/badge/-Grafana-464646?style=flat&logo=grafana&logoColor=56C0C0&color=008080)
-![Loki](https://img.shields.io/badge/-Loki-464646?style=flat&logo=grafana&logoColor=56C0C0&color=008080)
-![Promtail](https://img.shields.io/badge/-Promtail-464646?style=flat&logo=grafana&logoColor=56C0C0&color=008080)
-![Alertmanager](https://img.shields.io/badge/-Alertmanager-464646?style=flat&logo=prometheus&logoColor=56C0C0&color=008080)
-![Caddy](https://img.shields.io/badge/-Caddy-464646?style=flat&logo=caddy&logoColor=56C0C0&color=008080)
-![Fail2ban](https://img.shields.io/badge/-Fail2ban-464646?style=flat&logo=linux&logoColor=56C0C0&color=008080)
-![Python](https://img.shields.io/badge/-Python-464646?style=flat&logo=python&logoColor=56C0C0&color=008080)
-![FastAPI](https://img.shields.io/badge/-FastAPI-464646?style=flat&logo=fastapi&logoColor=56C0C0&color=008080)
-![Telegram](https://img.shields.io/badge/-Telegram-464646?style=flat&logo=telegram&logoColor=56C0C0&color=008080)
-
 ---
 
 # Architecture
 
 Monitoring architecture including metrics, logs and alerting pipeline.
 
-<p align="center">
-  <img src="docs/architecture.png" width="500">
-</p>
+```
+User → Caddy → demo-app
+
+metrics pipeline
+demo-app → Prometheus → Alertmanager → tg-relay → Telegram
+
+logs pipeline
+demo-app → Promtail → Loki → Grafana
+```
+
+Full architecture diagram: 
+
+```
+docs/architecture.png
+```
 
 ---
 
@@ -122,16 +134,24 @@ Run:
 monitor
 ```
 
-The script checks:
+Checks performed:
 
-- container status
+- running Docker containers
 - Prometheus readiness
 - Alertmanager readiness
 - Loki readiness
-- Prometheus targets
-- active alerts
 - demo-app health endpoint
-- recent Promtail errors
+- tg-relay container health
+- Prometheus scrape targets status
+- unhealthy scrape targets
+- currently firing alerts
+- pending alerts
+
+Location:
+
+```
+scripts/monitoring-health.sh
+```
 
 ---
 
@@ -319,58 +339,72 @@ docs/runbook.md
 
 ---
 
-# CI
+# CI/CD
 
-Configuration quality is validated through GitHub Actions.
+The repository includes automated CI/CD pipelines implemented with **GitHub Actions**.
+
+Two types of workflows are used:
+
+### Infrastructure validation
+
+Configuration changes are validated automatically before merging.
+
+Checks include:
+
+- YAML syntax validation
+- Prometheus configuration validation
+- Prometheus alert rules validation
+- Alertmanager configuration validation
+- Docker Compose configuration validation
 
 Workflow:
 
 https://github.com/Elyablack/monitoring-stack/blob/main/.github/workflows/validate-configs.yml
 
-The workflow verifies:
+These checks prevent broken monitoring configurations from being merged.
 
-- YAML syntax (`yamllint`)
-- Prometheus configuration (`promtool check config`)
-- Prometheus alert rules (`promtool check rules`)
-- Alertmanager configuration (`amtool check-config`)
+---
 
-These checks ensure that monitoring configuration changes cannot be merged if they break the stack.
+### Application deployment
+
+Application services are built and deployed automatically.
+
+Pipeline stages:
+
+1. Build Docker image
+2. Push image to GitHub Container Registry (GHCR)
+3. Deploy updated container on the VPS
+4. Wait for container health checks
+5. Automatic rollback on failure
+6. Promote successful build to `stable` tag
+7. Send deployment notification to Telegram
+
+This deployment pipeline is used for:
+
+- `demo-app`
+- `tg-relay`
 
 ---
 
 # Future improvements
 
-### Public observability dashboards
+### 1. Public dashboards
+Expose selected Grafana dashboards publicly to demonstrate observability capabilities.
 
-Expose a dedicated Grafana instance for public viewing of selected monitoring dashboards.
+### 2. Infrastructure automation
+Introduce Ansible for automated provisioning and configuration of the monitoring stack.
 
----
-
-### Infrastructure automation
-
-Introduce **Ansible** for automated deployment and configuration of the monitoring stack.
-
----
-
-### Distributed tracing
-
-Extend observability with **Grafana Tempo** for distributed tracing.
-
-This will enable correlation between:
-
+### 3. Distributed tracing
+Extend observability with Grafana Tempo to correlate:
 - metrics (Prometheus)
 - logs (Loki)
 - traces (Tempo)
 
----
-
-### Observability-driven operations
-
-Extend the stack beyond monitoring to support operational workflows:
-
+### 4. Alert-driven automation
+Introduce operational automation triggered by alerts:
 - automated remediation scripts
-- incident response tooling
-- alert-driven operational actions
+- self-healing infrastructure
+- alert-driven operational workflows
 
 ---
 
