@@ -11,7 +11,17 @@ on:
       - "docker-compose.yml"
       - ".yamllint.yml"
       - ".github/workflows/validate-configs.yml"
-  pull_request: {}
+
+  pull_request:
+    paths:
+      - "prometheus/**"
+      - "alertmanager/**"
+      - "loki/**"
+      - "promtail/**"
+      - "docker-compose.yml"
+      - ".yamllint.yml"
+      - ".github/workflows/validate-configs.yml"
+
   workflow_dispatch:
 
 permissions:
@@ -50,7 +60,7 @@ jobs:
             --entrypoint /bin/promtool \
             -v "$PWD/prometheus:/etc/prometheus:ro" \
             prom/prometheus:latest \
-            check config /etc/prometheus/prometheus.yml
+            promtool check config /etc/prometheus/prometheus.yml
 
       - name: Prometheus rules check
         run: |
@@ -58,7 +68,7 @@ jobs:
             --entrypoint /bin/promtool \
             -v "$PWD/prometheus:/etc/prometheus:ro" \
             prom/prometheus:latest \
-            check rules /etc/prometheus/alerts.yml
+            promtool check rules /etc/prometheus/alerts.yml
 
   amtool:
     runs-on: ubuntu-latest
@@ -73,4 +83,15 @@ jobs:
             --entrypoint /bin/amtool \
             -v "$PWD/alertmanager:/etc/alertmanager:ro" \
             prom/alertmanager:latest \
-            check-config /etc/alertmanager/alertmanager.yml
+            amtool check-config /etc/alertmanager/alertmanager.yml
+
+  compose:
+    runs-on: ubuntu-latest
+    needs: yamllint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate docker compose
+        run: |
+          docker compose -f docker-compose.yml config --quiet
