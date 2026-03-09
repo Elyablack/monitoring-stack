@@ -136,6 +136,8 @@ jobs:
           script: |
             set -euo pipefail
             cd /srv/monitoring
+            exec 9>/tmp/monitoring-deploy.lock
+            flock 9
 
             wait_health() {
               for i in $(seq 1 30); do
