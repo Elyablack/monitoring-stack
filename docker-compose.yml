@@ -51,7 +51,7 @@ services:
       - '--storage.path=/alertmanager'
 
   tg-relay:
-    image: ghcr.io/elyablack/tg-relay:${TG_RELAY_TAG:-latest}
+    image: ghcr.io/elyablack/tg-relay:${TG_RELAY_TAG:-stable}
     container_name: tg-relay
     restart: always
     networks:
@@ -104,7 +104,7 @@ services:
       - -config.file=/etc/promtail/promtail.yml
 
   demo-app:
-    image: ghcr.io/elyablack/demo-app:${DEMO_APP_TAG:-latest}
+    image: ghcr.io/elyablack/demo-app:${DEMO_APP_TAG:-stable}
     container_name: demo-app
     restart: always
     ports:
