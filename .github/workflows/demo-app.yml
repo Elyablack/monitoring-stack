@@ -5,11 +5,11 @@ on:
     paths:
       - "demo-app/**"
       - ".github/workflows/demo-app.yml"
+
   push:
     branches: ["main"]
-    paths:
-      - "demo-app/**"
-      - ".github/workflows/demo-app.yml"
+    tags: ["v*"]
+
   workflow_dispatch:
 
 permissions:
@@ -24,10 +24,33 @@ env:
   IMAGE: ghcr.io/elyablack/demo-app
 
 jobs:
-  build:
+  changes:
     runs-on: ubuntu-latest
     outputs:
+      changed: ${{ steps.filter.outputs.demo_app }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Paths filter
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            demo_app:
+              - 'demo-app/**'
+              - '.github/workflows/demo-app.yml'
+
+  build:
+    needs: changes
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'pull_request' ||
+      startsWith(github.ref, 'refs/tags/v') ||
+      needs.changes.outputs.changed == 'true'
+    outputs:
       shortsha: ${{ steps.vars.outputs.shortsha }}
+      version: ${{ steps.vars.outputs.version }}
+      is_tag: ${{ steps.vars.outputs.is_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,6 +61,15 @@ jobs:
         run: |
           set -euo pipefail
           echo "shortsha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            ver="${GITHUB_REF#refs/tags/v}"
+            echo "version=$ver" >> "$GITHUB_OUTPUT"
+            echo "is_tag=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+            echo "is_tag=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -61,8 +93,21 @@ jobs:
             APP_VERSION=pr-${{ github.event.pull_request.number }}-${{ steps.vars.outputs.shortsha }}
           tags: ${{ env.IMAGE }}:pr-${{ github.event.pull_request.number }}
 
+      - name: Build and push (tag release)
+        if: github.event_name != 'pull_request' && startsWith(github.ref, 'refs/tags/v')
+        uses: docker/build-push-action@v6
+        with:
+          context: ./demo-app
+          file: ./demo-app/Dockerfile
+          push: true
+          build-args: |
+            APP_VERSION=${{ steps.vars.outputs.version }}
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.vars.outputs.version }}
+            ${{ env.IMAGE }}:stable
+
       - name: Build and push (main)
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && !startsWith(github.ref, 'refs/tags/v')
         uses: docker/build-push-action@v6
         with:
           context: ./demo-app
@@ -75,13 +120,13 @@ jobs:
             ${{ env.IMAGE }}:sha-${{ steps.vars.outputs.shortsha }}
 
   deploy:
-    needs: build
-    if: github.event_name != 'pull_request'
+    needs: [build]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       mode: ${{ steps.readmode.outputs.mode }}
     steps:
-      - name: Deploy on VPS (health-wait + rollback)
+      - name: Deploy on VPS (health-wait + rollback + prune)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -112,6 +157,10 @@ jobs:
             if wait_health; then
               echo sha-${{ needs.build.outputs.shortsha }} > /tmp/demo-app-deploy-mode
               docker compose ps demo-app
+
+              docker image prune -af --filter "until=168h" || true
+              docker builder prune -af --filter "until=168h" || true
+
               exit 0
             fi
 
@@ -122,6 +171,10 @@ jobs:
             if wait_health; then
               echo rollback > /tmp/demo-app-deploy-mode
               docker compose ps demo-app
+
+              docker image prune -af --filter "until=168h" || true
+              docker builder prune -af --filter "until=168h" || true
+
               exit 0
             fi
 

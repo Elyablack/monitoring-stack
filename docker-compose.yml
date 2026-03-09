@@ -1,6 +1,6 @@
 services:
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus@sha256:4a61322ac1103a0e3aea2a61ef1718422a48fa046441f299d71e660a3bc71ae9
     container_name: prometheus
     restart: always
     networks:
@@ -18,7 +18,7 @@ services:
       - '--web.enable-lifecycle'
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana@sha256:b0ae311af06228bcfd4a620504b653db80f5b91e94dc3dc2a5b7dab202bcde20
     container_name: grafana
     restart: always
     ports:
@@ -36,7 +36,7 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
 
   alertmanager:
-    image: prom/alertmanager:latest
+    image: prom/alertmanager@sha256:88b605de9aba0410775c1eb3438f951115054e0d307f23f274a4c705f51630c1
     container_name: alertmanager
     restart: always
     networks:
@@ -73,7 +73,7 @@ services:
       start_period: 10s
 
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki@sha256:3c8fd3570dd9219951a60d3f919c7f31923d10baee578b77bc26c4a0b32d092d
     container_name: loki
     restart: always
     networks:
@@ -87,7 +87,7 @@ services:
       - -config.file=/etc/loki/loki.yml
 
   promtail:
-    image: grafana/promtail:latest
+    image: grafana/promtail@sha256:51346af8682f7a664affaca4f34a62f5a4f0f83ace9931df94590375a94ff8f1
     container_name: promtail
     restart: always
     networks:
