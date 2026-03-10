@@ -1,6 +1,10 @@
+
 # Observability Stack
 
 ![Validate Configs](https://github.com/Elyablack/monitoring-stack/actions/workflows/validate-configs.yml/badge.svg)
+![Dependabot](https://img.shields.io/badge/dependabot-enabled-025E8C?style=flat&logo=dependabot&logoColor=white)
+![Renovate](https://img.shields.io/badge/renovate-enabled-1A1F6C?style=flat&logo=renovatebot&logoColor=white)
+
 
 ![Linux](https://img.shields.io/badge/-Linux-464646?style=flat&logo=linux&logoColor=56C0C0&color=008080)
 ![Docker Compose](https://img.shields.io/badge/-Docker_Compose-464646?style=flat&logo=docker&logoColor=56C0C0&color=008080)
@@ -15,7 +19,7 @@
 ![FastAPI](https://img.shields.io/badge/-FastAPI-464646?style=flat&logo=fastapi&logoColor=56C0C0&color=008080)
 ![Telegram](https://img.shields.io/badge/-Telegram-464646?style=flat&logo=telegram&logoColor=56C0C0&color=008080)
 
-Production-style **observability and monitoring stack** built with **Prometheus, Loki and Grafana**.
+Production-style **observability and monitoring stack** built with **Prometheus, Loki, and Grafana**.
 
 This repository demonstrates a complete observability pipeline including:
 
@@ -26,23 +30,24 @@ This repository demonstrates a complete observability pipeline including:
 - Telegram alert notifications
 - operational runbooks
 - reverse proxy ingress
-- basic SSH hardening
+- basic host & edge hardening
+- CI validation and automated dependency updates
 
 The stack runs entirely with **Docker Compose**.
 
 ---
 
-# Live demo
+## Live demo
 
-A public demo instance of the application is available:
+Public demo instance:
 
-https://demo.142.93.143.228.nip.io/
+- https://demo.142.93.143.228.nip.io/
 
 The demo exposes endpoints used to trigger monitoring scenarios and alerts.
 
 ---
 
-# Tech stack
+## Tech stack
 
 - **Docker Compose** — service orchestration
 - **Prometheus** — metrics collection and alert evaluation
@@ -51,14 +56,14 @@ The demo exposes endpoints used to trigger monitoring scenarios and alerts.
 - **Promtail** — log shipping
 - **Grafana** — dashboards and visualization
 - **Caddy** — reverse proxy and HTTPS ingress
-- **Fail2ban** — SSH protection
+- **Fail2ban** — SSH + HTTP abuse protection
 - **Python / FastAPI** — demo application
 - **Telegram** — alert notifications via `tg-relay`
 - **Linux / Ubuntu** — deployment environment
 
 ---
 
-# Architecture
+## Architecture
 
 Monitoring architecture including metrics, logs and alerting pipeline.
 
@@ -80,7 +85,7 @@ docs/architecture.png
 
 ---
 
-# Dashboard preview
+## Dashboard preview
 
 Example Grafana dashboard showing host metrics collected by node_exporter.
 
@@ -94,7 +99,7 @@ Metrics shown:
 
 ---
 
-# Features
+## Features
 
 - Monitoring stack deployed with Docker Compose
 - Prometheus alert rules for host and application health
@@ -102,29 +107,24 @@ Metrics shown:
 - Grafana dashboards for metrics and logs
 - Telegram alert delivery through relay service
 - Caddy reverse proxy for external access
-- Fail2ban integration for SSH protection
+- Fail2ban integration (SSH + HTTP abuse patterns)
 - Demo endpoints for alert testing
 - Runbook for incident investigation
 
 ---
 
-# Quick start
+## Quick start
 
 Start the monitoring stack:
 
 ```
 docker compose up -d
-```
-
-Verify containers:
-
-```
 docker ps
 ```
 
 ---
 
-# Monitoring health check
+## Monitoring health check
 
 A helper script is available to verify the monitoring stack.
 
@@ -155,7 +155,7 @@ scripts/monitoring-health.sh
 
 ---
 
-# Operations
+## Operations
 
 ### Check container status
 
@@ -195,7 +195,7 @@ curl http://127.0.0.1:9093/-/ready
 
 ---
 
-# Services
+## Services
 
 | Service | URL |
 |--------|------|
@@ -207,17 +207,19 @@ If deployed with **Caddy**, Grafana may be exposed via HTTPS.
 
 ---
 
-# Repository structure
+## Repository structure
 
 ```
 .
 ├── docker-compose.yml
 ├── Makefile
+├── renovate.json
 ├── .gitignore
 ├── .yamllint.yml
 ├── README.md
 ├── docs/
 │   ├── runbook.md
+│   ├── architecture.png
 │   └── dashboard.png
 ├── scripts/
 │   └── monitor
@@ -243,7 +245,7 @@ If deployed with **Caddy**, Grafana may be exposed via HTTPS.
 
 ---
 
-# Alerts
+## Alerts
 
 Implemented alert rules include:
 
@@ -265,7 +267,7 @@ docs/runbook.md
 
 ---
 
-# Demo and testing
+## Demo and testing
 
 Trigger a **5xx error**:
 
@@ -288,13 +290,11 @@ These endpoints allow testing the full monitoring pipeline:
 
 ---
 
-# Logs
+## Logs
 
 Application logs are collected via **Promtail** and stored in **Loki**.
 
-Logs can be explored in Grafana using LogQL queries.
-
-Example:
+Example LogQL:
 
 ```
 {service_name="demo-app"} | json | status >= 500
@@ -302,109 +302,93 @@ Example:
 
 ---
 
-# Security
+## Security
+
+### Pinned images (reproducible deployments)
+
+Core infrastructure images are pinned by digest in docker-compose.yml to avoid unexpected changes from floating tags like latest.
+
+### Container hardening
+
+Services use container hardening defaults where applicable:
+
+- no-new-privileges    
+- cap_drop: ALL
+- PID limits
+
+### Secrets hygiene
 
 Sensitive data is not tracked in the repository.
 
 Ignored items include:
 
-- runtime storage directories
+- runtime storage directories    
 - environment secrets
 - TLS keys
 - SSH keys
 
-See `.gitignore` for details.
+See .gitignore for details.
 
 ---
 
-# Runbook
+## CI/CD
 
-Operational troubleshooting documentation:
-
-```
-docs/runbook.md
-```
-
----
-
-# Skills demonstrated
-
-- observability stack design
-- Prometheus alerting rules
-- centralized logging with Loki
-- incident runbook design
-- containerized infrastructure
-- reverse proxy configuration
-- CI validation for infrastructure configs
-
----
-
-# CI/CD
-
-The repository includes automated CI/CD pipelines implemented with **GitHub Actions**.
-
-Two types of workflows are used:
+The repository uses GitHub Actions for CI and deployments.
 
 ### Infrastructure validation
 
 Configuration changes are validated automatically before merging.
 
-Checks include:
-
-- YAML syntax validation
-- Prometheus configuration validation
-- Prometheus alert rules validation
-- Alertmanager configuration validation
-- Docker Compose configuration validation
+- YAML lint
+- Prometheus config validation (promtool)
+- Prometheus rules validation (promtool)
+- Alertmanager config validation (amtool)
 
 Workflow:
-
+```
 https://github.com/Elyablack/monitoring-stack/blob/main/.github/workflows/validate-configs.yml
+```
 
-These checks prevent broken monitoring configurations from being merged.
+### Application build & deploy
+
+Application services are built and deployed automatically:
+
+- demo-app    
+- tg-relay
+
+Flow:
+
+1. Build image    
+2. Push image to GHCR
+3. Deploy updated container on VPS (SHA tag)
+4. Health wait
+5. Automatic rollback to stable on failure
+6. Telegram deployment notification
+
+### Release tags
+
+Creating a tag vX.Y.Z publishes:
+
+- ghcr.io/elyablack/demo-app:X.Y.Z    
+- ghcr.io/elyablack/demo-app:stable
+- ghcr.io/elyablack/demo-app:latest
+
+(and same for tg-relay)
 
 ---
 
-### Application deployment
+## Dependency automation
 
-Application services are built and deployed automatically.
-
-Pipeline stages:
-
-1. Build Docker image
-2. Push image to GitHub Container Registry (GHCR)
-3. Deploy updated container on the VPS
-4. Wait for container health checks
-5. Automatic rollback on failure
-6. Promote successful build to `stable` tag
-7. Send deployment notification to Telegram
-
-This deployment pipeline is used for:
-
-- `demo-app`
-- `tg-relay`
+- **Dependabot** updates **GitHub Actions** weekly.
+- **Renovate** updates **Docker images** (compose/Dockerfiles) weekly, with auto-merge for patch/digest updates.
 
 ---
 
-# Future improvements
+## Future improvements
 
-### 1. Public dashboards
-Expose selected Grafana dashboards publicly to demonstrate observability capabilities.
-
-### 2. Infrastructure automation
-Introduce Ansible for automated provisioning and configuration of the monitoring stack.
-
-### 3. Distributed tracing
-Extend observability with Grafana Tempo to correlate:
-- metrics (Prometheus)
-- logs (Loki)
-- traces (Tempo)
-
-### 4. Alert-driven automation
-Introduce operational automation triggered by alerts:
-- automated remediation scripts
-- self-healing infrastructure
-- alert-driven operational workflows
+1. Infrastructure automation with Ansible (one-command provision + deploy)
+2. Distributed tracing with Grafana Tempo (metrics/logs/traces correlation)
+3. Alert-driven automation (self-healing workflows)
 
 ---
 
