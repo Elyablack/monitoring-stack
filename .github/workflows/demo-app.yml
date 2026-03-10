@@ -30,17 +30,20 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      changed: ${{ steps.filter.outputs.demo_app }}
+      service_changed: ${{ steps.filter.outputs.demo_app_service }}
+      workflow_changed: ${{ steps.filter.outputs.demo_app_workflow }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
       - name: Paths filter
         id: filter
         uses: dorny/paths-filter@v3
         with:
           filters: |
-            demo_app:
+            demo_app_service:
               - 'demo-app/**'
+            demo_app_workflow:
               - '.github/workflows/demo-app.yml'
 
   build:
@@ -49,7 +52,8 @@ jobs:
     if: >
       github.event_name == 'pull_request' ||
       startsWith(github.ref, 'refs/tags/v') ||
-      needs.changes.outputs.changed == 'true'
+      needs.changes.outputs.service_changed == 'true' ||
+      needs.changes.outputs.workflow_changed == 'true'
     outputs:
       shortsha: ${{ steps.vars.outputs.shortsha }}
       version: ${{ steps.vars.outputs.version }}
@@ -123,11 +127,12 @@ jobs:
             ${{ env.IMAGE }}:sha-${{ steps.vars.outputs.shortsha }}
 
   deploy:
-    needs: [build]
+    needs: [changes, build]
     if: >
-      github.event_name != 'pull_request' &&
+      github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
-      needs.build.result == 'success'
+      needs.build.result == 'success' &&
+      needs.changes.outputs.service_changed == 'true'
     runs-on: ubuntu-latest
     outputs:
       mode: ${{ steps.readmode.outputs.mode }}
@@ -165,7 +170,6 @@ jobs:
             if wait_health; then
               echo sha-${{ needs.build.outputs.shortsha }} > /tmp/demo-app-deploy-mode
               docker compose ps demo-app
-
               docker image prune -af --filter "until=168h" || true
               docker builder prune -af --filter "until=168h" || true
               exit 0
@@ -178,7 +182,6 @@ jobs:
             if wait_health; then
               echo rollback > /tmp/demo-app-deploy-mode
               docker compose ps demo-app
-
               docker image prune -af --filter "until=168h" || true
               docker builder prune -af --filter "until=168h" || true
               exit 0
@@ -196,7 +199,6 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-
           SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${{ secrets.VPS_PORT }}"
           HOST="${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}"
           mode="$(ssh $SSH_OPTS "$HOST" 'cat /tmp/demo-app-deploy-mode 2>/dev/null || echo unknown')"
