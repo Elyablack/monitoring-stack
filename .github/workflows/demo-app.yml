@@ -8,6 +8,9 @@ on:
 
   push:
     branches: ["main"]
+    paths:
+      - "demo-app/**"
+      - ".github/workflows/demo-app.yml"
     tags: ["v*"]
 
   workflow_dispatch:
@@ -121,7 +124,10 @@ jobs:
 
   deploy:
     needs: [build]
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: >
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/main' &&
+      needs.build.result == 'success'
     runs-on: ubuntu-latest
     outputs:
       mode: ${{ steps.readmode.outputs.mode }}
@@ -162,7 +168,6 @@ jobs:
 
               docker image prune -af --filter "until=168h" || true
               docker builder prune -af --filter "until=168h" || true
-
               exit 0
             fi
 
@@ -176,7 +181,6 @@ jobs:
 
               docker image prune -af --filter "until=168h" || true
               docker builder prune -af --filter "until=168h" || true
-
               exit 0
             fi
 

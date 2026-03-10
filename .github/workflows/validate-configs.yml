@@ -11,7 +11,17 @@ on:
       - "docker-compose.yml"
       - ".yamllint.yml"
       - ".github/workflows/validate-configs.yml"
-  pull_request: {}
+
+  pull_request:
+    paths:
+      - "prometheus/**"
+      - "alertmanager/**"
+      - "loki/**"
+      - "promtail/**"
+      - "docker-compose.yml"
+      - ".yamllint.yml"
+      - ".github/workflows/validate-configs.yml"
+
   workflow_dispatch:
 
 permissions:
@@ -20,6 +30,10 @@ permissions:
 concurrency:
   group: validate-configs-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  PROM_IMAGE: prom/prometheus@sha256:4a61322ac1103a0e3aea2a61ef1718422a48fa046441f299d71e660a3bc71ae9
+  AM_IMAGE: prom/alertmanager@sha256:88b605de9aba0410775c1eb3438f951115054e0d307f23f274a4c705f51630c1
 
 jobs:
   yamllint:
@@ -49,7 +63,7 @@ jobs:
           docker run --rm \
             --entrypoint /bin/promtool \
             -v "$PWD/prometheus:/etc/prometheus:ro" \
-            prom/prometheus:latest \
+            "${PROM_IMAGE}" \
             check config /etc/prometheus/prometheus.yml
 
       - name: Prometheus rules check
@@ -57,7 +71,7 @@ jobs:
           docker run --rm \
             --entrypoint /bin/promtool \
             -v "$PWD/prometheus:/etc/prometheus:ro" \
-            prom/prometheus:latest \
+            "${PROM_IMAGE}" \
             check rules /etc/prometheus/alerts.yml
 
   amtool:
@@ -72,5 +86,5 @@ jobs:
           docker run --rm \
             --entrypoint /bin/amtool \
             -v "$PWD/alertmanager:/etc/alertmanager:ro" \
-            prom/alertmanager:latest \
+            "${AM_IMAGE}" \
             check-config /etc/alertmanager/alertmanager.yml
