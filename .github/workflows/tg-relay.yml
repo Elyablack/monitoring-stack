@@ -133,7 +133,7 @@ jobs:
       mode: ${{ steps.readmode.outputs.mode }}
     steps:
       - name: Deploy on VPS (health-wait + rollback + prune)
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
