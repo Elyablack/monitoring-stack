@@ -1,0 +1,30 @@
+{
+  "extends": ["config:base"],
+  "timezone": "UTC",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "prHourlyLimit": 4,
+  "prConcurrentLimit": 8,
+
+  "enabledManagers": ["docker-compose", "dockerfile"],
+
+  "platformAutomerge": true,
+  "automergeType": "pr",
+
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["patch", "digest"],
+      "automerge": true,
+      "groupName": "patch+digest (auto)"
+    },
+    {
+      "matchUpdateTypes": ["minor", "major"],
+      "automerge": false,
+      "groupName": "minor+major (manual)"
+    },
+    {
+      "matchManagers": ["docker-compose", "dockerfile"],
+      "groupName": "docker images"
+    }
+  ]
+}

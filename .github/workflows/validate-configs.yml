@@ -12,15 +12,7 @@ on:
       - ".yamllint.yml"
       - ".github/workflows/validate-configs.yml"
 
-  pull_request:
-    paths:
-      - "prometheus/**"
-      - "alertmanager/**"
-      - "loki/**"
-      - "promtail/**"
-      - "docker-compose.yml"
-      - ".yamllint.yml"
-      - ".github/workflows/validate-configs.yml"
+  pull_request: {}
 
   workflow_dispatch:
 
