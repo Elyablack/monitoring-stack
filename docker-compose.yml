@@ -16,6 +16,11 @@ services:
       - '--storage.tsdb.retention.time=7d'
       - '--storage.tsdb.retention.size=300MB'
       - '--web.enable-lifecycle'
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
 
   grafana:
     image: grafana/grafana@sha256:b0ae311af06228bcfd4a620504b653db80f5b91e94dc3dc2a5b7dab202bcde20
@@ -34,6 +39,11 @@ services:
       - GF_AUTH_ANONYMOUS_ENABLED=false
       - GF_AUTH_BASIC_ENABLED=true
       - GF_USERS_ALLOW_SIGN_UP=false
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
 
   alertmanager:
     image: prom/alertmanager@sha256:88b605de9aba0410775c1eb3438f951115054e0d307f23f274a4c705f51630c1
@@ -49,6 +59,11 @@ services:
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
 
   tg-relay:
     image: ghcr.io/elyablack/tg-relay:${TG_RELAY_TAG:-stable}
@@ -71,6 +86,11 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
 
   loki:
     image: grafana/loki@sha256:3c8fd3570dd9219951a60d3f919c7f31923d10baee578b77bc26c4a0b32d092d
@@ -85,6 +105,11 @@ services:
       - ./loki-data:/loki
     command:
       - -config.file=/etc/loki/loki.yml
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
 
   promtail:
     image: grafana/promtail@sha256:51346af8682f7a664affaca4f34a62f5a4f0f83ace9931df94590375a94ff8f1
@@ -102,6 +127,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     command:
       - -config.file=/etc/promtail/promtail.yml
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
 
   demo-app:
     image: ghcr.io/elyablack/demo-app:${DEMO_APP_TAG:-stable}
@@ -128,6 +158,11 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
 
 networks:
   monitoring:
