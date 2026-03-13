@@ -54,6 +54,16 @@ groups:
           description: "node_boot_time_seconds changed in last 15m for {{ $labels.instance_name }} ({{ $labels.instance }})."
           runbook_url: "runbook:reboot"
 
+      - alert: BackupMissing
+        expr: time() - backup_last_success_unixtime > 93600
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backup missing or stale"
+          description: "Last successful backup is older than 26 hours."
+          runbook_url: "runbook:backup-missing"
+
   - name: demo-app
     rules:
       - alert: DemoAppDown
