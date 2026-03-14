@@ -1,5 +1,37 @@
 # Backup alerts
 
+## Dashboard
+
+The alerts described in this runbook correspond to the **Backup monitoring dashboard**.
+
+![Backup monitoring dashboard](../images/backup-alerts.png)
+
+This dashboard provides visibility into the health of the backup pipeline.
+
+The dashboard includes the following panels:
+
+- **Last backup** — timestamp of the most recent successful backup
+- **Backup status** — success/failure state of the last backup
+- **Backup age** — time elapsed since the last successful backup
+
+These panels allow operators to quickly verify whether backups are running correctly and how long ago the last successful backup occurred.
+
+---
+
+## Backup monitoring workflow
+
+The backup pipeline consists of several stages:
+
+1. backup archive creation on the VPS
+2. archive download to the Mac host
+3. checksum generation and verification
+4. offsite replication to the `admin` and `lab` nodes
+5. publishing backup success metric to the node exporter textfile collector
+
+The alert **BackupMissing** fires when the metric `backup_last_success_unixtime` indicates that the last successful backup is older than the expected threshold.
+
+---
+
 ## Contents
 
 - [BackupMissing](#backupmissing)
