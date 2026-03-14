@@ -1,5 +1,50 @@
 # Host alerts
 
+## Dashboard
+
+The alerts described in this runbook correspond to the **Host alerts dashboard**.
+
+This dashboard provides a **high-level overview of host health** and is intended for quick investigation when an alert fires.
+
+![Host alerts dashboard](../images/dashboards/host-alerts.png)
+
+The dashboard includes panels for:
+
+- node exporter health
+- root filesystem usage
+- memory usage
+- CPU usage
+- time since reboot
+
+These panels provide the most important host signals needed for rapid triage.
+
+---
+
+## Host monitoring dashboards
+
+Two dashboards are available for host monitoring:
+
+| Dashboard | Purpose |
+|------|------|
+| **Host alerts** | quick investigation when an alert fires |
+| **Node exporter full** | detailed host diagnostics and full host metrics |
+
+The **Node exporter full dashboard** contains the complete set of metrics exported by node_exporter, including:
+
+- CPU metrics
+- memory metrics
+- filesystem usage
+- disk I/O
+- network traffic
+- system load
+- kernel metrics
+
+It is intended for **deep investigation** after an alert has fired.
+
+The dashboard does **not contain alert rules** and is used purely for observability and troubleshooting.
+
+---
+
 ## Contents
 
 - [NodeExporterDown](#nodeexporterdown)
