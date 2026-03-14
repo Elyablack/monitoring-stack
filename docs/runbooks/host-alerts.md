@@ -6,7 +6,7 @@ The alerts described in this runbook correspond to the **Host alerts dashboard**
 
 This dashboard provides a **high-level overview of host health** and is intended for quick investigation when an alert fires.
 
-![Host alerts dashboard](../images/dashboards/host-alerts.png)
+![Host alerts dashboard](../images/host-alerts.png)
 
 The dashboard includes panels for:
 
