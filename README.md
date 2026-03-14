@@ -1,4 +1,3 @@
-
 # Observability Stack
 
 ![Validate Configs](https://github.com/Elyablack/monitoring-stack/actions/workflows/validate-configs.yml/badge.svg)
@@ -87,15 +86,27 @@ docs/images/architecture.png
 
 ## Dashboard preview
 
-Example Grafana dashboard showing host metrics collected by node_exporter.
+Grafana dashboards provide visibility into host health, application performance, and backup pipeline status.
+
+Example dashboard showing host metrics collected by **node_exporter**.
 
 ![Grafana Dashboard](docs/images/dashboard.png)
 
-Metrics shown:
+Typical host metrics include:
+
 - CPU usage
 - memory utilization
-- network traffic
 - disk usage
+- network traffic
+- system load
+
+Additional dashboards are available for:
+
+- **host alert investigation**
+- **application health monitoring**
+- **backup pipeline monitoring**
+
+These dashboards are used together with alert rules and operational runbooks for incident investigation.
 
 ---
 
