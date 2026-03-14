@@ -1,5 +1,40 @@
 # Application alerts
 
+## Dashboard
+
+The alerts described in this runbook correspond to the **Application alerts dashboard**.
+
+This dashboard provides a **high-level overview of application health** and is used to investigate alerts related to the demo application.
+
+![Application alerts dashboard](../images/application-alerts.png)
+
+The dashboard includes the following panels:
+
+- demo application health
+- HTTP 5xx error rate
+- inflight requests
+- P95 request latency
+- HTTP status distribution
+
+These panels provide the most important signals for quickly identifying application issues.
+
+---
+
+## Application monitoring dashboards
+
+Two dashboards are available for application observability:
+
+| Dashboard | Purpose |
+|------|------|
+| **Application alerts** | quick investigation when application alerts fire |
+| **Application metrics** | deeper application metrics exploration |
+
+The **Application alerts dashboard** focuses on the most important signals that correlate directly with alert rules.
+
+For deeper investigation engineers can explore the raw metrics directly in Prometheus or Grafana.
+
+---
+
 ## Contents
 
 - [DemoAppDown](#demoappdown)
