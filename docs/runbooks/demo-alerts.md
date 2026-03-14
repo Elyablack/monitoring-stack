@@ -1,5 +1,25 @@
 # Demo alerts
 
+## Dashboard
+
+Demo alerts can be observed in the **Application alerts dashboard**.
+
+This dashboard shows the key application signals that change when demo endpoints are triggered.
+
+![Application alerts dashboard](../images/application-alerts.png)
+
+The dashboard includes panels for:
+
+- demo application health
+- HTTP 5xx error rate
+- inflight requests
+- P95 request latency
+- HTTP status distribution
+
+These panels allow operators to observe how the monitoring system reacts when demo alerts are triggered.
+
+---
+
 ## Contents
 
 - [DemoAppButtonError503](#demoappbuttonerror503)
