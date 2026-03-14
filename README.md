@@ -80,7 +80,7 @@ demo-app → Promtail → Loki → Grafana
 Full architecture diagram: 
 
 ```
-docs/architecture.png
+docs/images/architecture.png
 ```
 
 ---
@@ -89,7 +89,7 @@ docs/architecture.png
 
 Example Grafana dashboard showing host metrics collected by node_exporter.
 
-![Grafana Dashboard](docs/dashboard.png)
+![Grafana Dashboard](docs/images/dashboard.png)
 
 Metrics shown:
 - CPU usage
