@@ -16,12 +16,13 @@ grafana.142.93.143.228.nip.io {
 	}
 
 	route {
+    @livews path /api/live/ws
+    reverse_proxy @livews 127.0.0.1:3000
+
 		basic_auth {
 			admin {env.GRAFANA_BASIC_AUTH_HASH}
 		}
 
-		@livews path /api/live/ws
-    reverse_proxy @livews 127.0.0.1:3000
     reverse_proxy 127.0.0.1:3000
 	}
 }
