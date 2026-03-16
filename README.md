@@ -84,6 +84,42 @@ docs/images/architecture.png
 
 ---
 
+## Infrastructure Automation
+
+This monitoring stack is supported by a separate infrastructure automation repository:
+
+```text
+https://github.com/Elyablack/infra
+```
+
+The infrastructure repository contains:
+
+- Ansible bootstrap playbooks
+- VPS backup automation
+- offsite backup replication
+- restore testing and recovery scripts
+- infrastructure operational documentation
+
+Operational flow:
+
+```
+infra repository
+   │
+   ├── Ansible baseline and hardening
+   ├── automated VPS backups
+   ├── offsite backup copies
+   └── restore procedures
+          │
+          ▼
+monitoring-stack repository
+   │
+   └── observability services and application runtime
+```
+
+This separation keeps infrastructure operations and monitoring stack application code independent while still documenting the full production workflow.
+
+---
+
 ## Dashboard preview
 
 Grafana dashboards provide visibility into host health, application performance, and backup pipeline status.
@@ -121,6 +157,7 @@ These dashboards are used together with alert rules and operational runbooks for
 - Fail2ban integration (SSH + HTTP abuse patterns)
 - Demo endpoints for alert testing
 - Runbook for incident investigation
+- Separate infrastructure automation repository for bootstrap, backup, and recovery workflows
 
 ---
 
@@ -395,14 +432,32 @@ Creating a tag vX.Y.Z publishes:
 
 ---
 
+## Related Repositories
+
+### Infrastructure automation
+
+```
+https://github.com/Elyablack/infra
+```
+
+Contains:
+
+- Ansible playbooks
+- backup automation
+- offsite replication
+- restore scripts
+- disaster recovery workflow
+
+  ---
+  
 ## Future improvements
 
-1. Infrastructure automation with Ansible (one-command provision + deploy)
+1. Terraform-based VPS provisioning and infrastructure lifecycle management
 2. Distributed tracing with Grafana Tempo (metrics/logs/traces correlation)
 3. Alert-driven automation (self-healing workflows)
 
 ---
 
-# License
+## License
 
 MIT
