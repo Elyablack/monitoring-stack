@@ -3,12 +3,12 @@ groups:
     rules:
 
       - alert: NodeExporterDown
-        expr: up{job=~"vps|home1|home2"} == 0
+        expr: up{job="nodes"} == 0
         for: 2m
         labels:
           severity: critical
         annotations:
-          summary: "Node exporter down ({{ $labels.instance_name }})"
+          summary: "Node exporter down ({{ $labels.node }})"
           description: "Prometheus cannot scrape node_exporter on {{ $labels.instance_name }} ({{ $labels.instance }}) for 2m."
           runbook_url: "runbook:check-node-exporter"
 

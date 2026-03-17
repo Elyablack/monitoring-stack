@@ -4,6 +4,9 @@ import json
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
 
+SHOW_SOURCE_URL = False
+SHOW_ALERTMANAGER_URL = False
+
 
 def parse_payload(raw: bytes) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     try:
@@ -100,7 +103,7 @@ def _format_alert(alert: Dict[str, Any]) -> str:
         lines.append(f"endsAt: {ends_at}")
     if runbook:
         lines.append(f"runbook: {runbook}")
-    if generator:
+    if generator and SHOW_SOURCE_URL:
         lines.append(f"source: {generator}")
 
     return "\n".join(lines).strip()
@@ -157,7 +160,7 @@ def format_alerts_message(payload: Dict[str, Any], *, max_alerts: int) -> str:
     if remaining > 0:
         lines.append(f"... and {remaining} more alerts")
 
-    if external_url:
+    if external_url and SHOW_ALERTMANAGER_URL:
         lines.append(f"alertmanager: {external_url}")
 
     return "\n\n".join(part for part in lines if part).strip()
