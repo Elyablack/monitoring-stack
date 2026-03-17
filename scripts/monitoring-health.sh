@@ -69,12 +69,12 @@ fi
 
 say "prometheus targets"
 curl -fsS http://127.0.0.1:9090/api/v1/targets \
-| jq -r '.data.activeTargets[] | "\(.labels.job) \(.labels.instance) -> \(.health)"'
+| jq -r '.data.activeTargets[] | "\(.labels.node) \(.labels.instance) -> \(.health)"'
 
 say "unhealthy targets"
 unhealthy_targets="$(
   curl -fsS http://127.0.0.1:9090/api/v1/targets \
-  | jq -r '.data.activeTargets[] | select(.health != "up") | "\(.labels.job) \(.labels.instance) -> \(.health)"'
+  | jq -r '.data.activeTargets[] | select(.health != "up") | "\(.labels.node) \(.labels.instance) -> \(.health)"'
 )"
 if [ -n "${unhealthy_targets}" ]; then
   printf '%s\n' "${unhealthy_targets}"
