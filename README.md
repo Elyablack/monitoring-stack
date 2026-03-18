@@ -452,9 +452,48 @@ Contains:
   
 ## Future improvements
 
-1. Terraform-based VPS provisioning and infrastructure lifecycle management
-2. Distributed tracing with Grafana Tempo (metrics/logs/traces correlation)
-3. Alert-driven automation (self-healing workflows)
+### Agentic operations
+
+Extend the stack from observability toward operability by introducing agent-driven operational workflows.
+
+Planned capabilities include:
+
+- alert-driven diagnostics
+- automated collection of logs and metrics context
+- remediation suggestions
+- approval-based operational actions
+- incident summaries delivered to Telegram
+
+### Tool-using assistants
+
+Add support for agents capable of interacting with operational tools such as:
+
+- shell
+- Docker
+- systemd
+- Kubernetes
+- GitHub
+- messaging APIs
+
+### Message and incident analysis
+
+Introduce bots for structured analysis of Telegram or chat-based operational messages, including:
+
+- summarization
+- incident extraction
+- daily digests
+- task detection
+- signal-to-noise reduction
+
+### Distributed tracing
+
+Extend the stack with Grafana Tempo to correlate:
+
+- metrics
+- logs
+- traces
+
+This will provide richer context for future agent-based diagnostics.
 
 ---
 
