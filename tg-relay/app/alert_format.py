@@ -102,7 +102,7 @@ def _format_alert(alert: Dict[str, Any]) -> str:
     if ends_at and status == "RESOLVED":
         lines.append(f"endsAt: {ends_at}")
     if runbook:
-        lines.append(f"runbook: {runbook}")
+        lines.append(f"runbook: {runbook.split(':', 1)[-1].strip()}")
     if generator and SHOW_SOURCE_URL:
         lines.append(f"source: {generator}")
 
