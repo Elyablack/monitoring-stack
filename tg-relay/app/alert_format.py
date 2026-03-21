@@ -148,9 +148,15 @@ def format_alerts_message(payload: Dict[str, Any], *, max_alerts: int) -> str:
 
     if header_meta:
         lines.append(" ".join(header_meta))
-
+    
     common_summary = _one_line(_pick(common_annotations.get("summary")))
-    if common_summary:
+
+    first_alert_summary = ""
+    if len(alerts) == 1:
+        first_annotations = _as_dict(alerts[0].get("annotations"))
+        first_alert_summary = _one_line(_pick(first_annotations.get("summary")))
+
+    if common_summary and not (len(alerts) == 1 and common_summary == first_alert_summary):
         lines.append(f"group_summary: {common_summary}")
 
     rendered = [_format_alert(alert) for alert in alerts[:max_alerts]]
