@@ -16,16 +16,6 @@ scrape_configs:
           node: "admin"
           instance_name: "home-admin"
 
-      - targets: ["100.68.129.57:9100"]
-        labels:
-          node: "lab"
-          instance_name: "home-lab"
-
-      - targets: ["100.112.214.10:9100"]
-        labels:
-          node: "pc"
-          instance_name: "home-pc"
-
   - job_name: "demo-app"
     scrape_interval: 5s
     metrics_path: /metrics
