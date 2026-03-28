@@ -18,15 +18,20 @@ route:
         - severity="test"
       receiver: telegram-test
       repeat_interval: 1h
+      continue: true
 
     - matchers:
         - severity="critical"
       receiver: telegram-critical
+      continue: true
 
     - matchers:
         - severity="warning"
       receiver: telegram-warning
       repeat_interval: 12h
+      continue: true
+
+    - receiver: action-runner
 
 inhibit_rules:
   - source_matchers:
@@ -52,4 +57,9 @@ receivers:
   - name: telegram-test
     webhook_configs:
       - url: http://tg-relay:8080/
+        send_resolved: true
+
+  - name: action-runner
+    webhook_configs:
+      - url: http://172.19.0.1:8088/events/alertmanager
         send_resolved: true
