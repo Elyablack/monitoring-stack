@@ -76,6 +76,8 @@ services:
     environment:
       PORT: "8080"
       APP_VERSION: "${TG_RELAY_TAG:-latest}"
+    ports:
+      - "127.0.0.1:8082:8080"
     expose:
       - "8080"
     labels:
