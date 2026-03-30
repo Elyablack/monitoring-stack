@@ -23,7 +23,7 @@ services:
     pids_limit: 256
 
   grafana:
-    image: grafana/grafana@sha256:e932bd6ed0e026595b08483cd0141e5103e1ab7ff8604839ff899b8dc54cabcb
+    image: grafana/grafana@sha256:83749231c3835e390a3144e5e940203e42b9589761f20ef3169c716e734ad505
     container_name: grafana
     restart: always
     ports:
@@ -93,7 +93,7 @@ services:
     pids_limit: 256
 
   loki:
-    image: grafana/loki@sha256:3c8fd3570dd9219951a60d3f919c7f31923d10baee578b77bc26c4a0b32d092d
+    image: grafana/loki@sha256:73e905b51a7f917f7a1075e4be68759df30226e03dcb3cd2213b989cc0dc8eb4
     container_name: loki
     restart: always
     networks:
@@ -112,7 +112,7 @@ services:
     pids_limit: 256
 
   promtail:
-    image: grafana/promtail@sha256:51346af8682f7a664affaca4f34a62f5a4f0f83ace9931df94590375a94ff8f1
+    image: grafana/promtail@sha256:6cfa64ec432b24a912d640e2edb940eeae2666f61861a66c121d763dd7241381
     container_name: promtail
     restart: always
     networks:
