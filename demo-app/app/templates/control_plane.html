@@ -1,11 +1,13 @@
+/srv/monitoring/demo-app/app/templates/control_plane.html
+
 <!doctype html>
 <html lang="en" data-app="{{ app_name }}" data-env="{{ env }}" data-theme="terminal">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ page_title }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260404-1" />
-  <script defer src="/static/control_plane.js?v=20260404-1"></script>
+  <link rel="stylesheet" href="/static/app.css?v=20260404-2" />
+  <script defer src="/static/control_plane.js?v=20260404-2"></script>
   <style>
     .cp-topbar {
       display: flex;
@@ -29,25 +31,8 @@
       white-space: nowrap;
     }
 
-    .cp-stack {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 18px;
+    .cp-summary-card {
       margin-top: 22px;
-    }
-
-    .cp-card {
-      width: 100%;
-    }
-
-    .cp-pre {
-      min-height: 240px;
-      overflow: auto;
-    }
-
-    .cp-pre-summary {
-      min-height: 170px;
-      overflow: auto;
     }
 
     .cp-card-head {
@@ -59,7 +44,67 @@
       margin-bottom: 12px;
     }
 
-    @media (max-width: 1180px) {
+    .cp-pre-summary {
+      min-height: 170px;
+      overflow: auto;
+    }
+
+    .cp-pre-main {
+      min-height: 520px;
+      overflow: auto;
+    }
+
+    .cp-pre-side {
+      min-height: 250px;
+      overflow: auto;
+    }
+
+    .cp-right-stack {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+    }
+
+    .cp-link-btn {
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+
+    .cp-badge-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .cp-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(70, 200, 120, 0.28);
+      background: rgba(20, 120, 60, 0.12);
+      color: inherit;
+      font-family: var(--mono);
+      font-size: 0.92rem;
+      line-height: 1;
+    }
+
+    .cp-badge-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+      background: #2ecc71;
+      box-shadow: 0 0 12px rgba(46, 204, 113, 0.45);
+    }
+
+    @media (max-width: 1240px) {
       .cp-topbar {
         flex-wrap: wrap;
       }
@@ -73,6 +118,13 @@
 
       .cp-subtitle {
         white-space: normal;
+      }
+    }
+
+    @media (max-width: 1080px) {
+      .cp-pre-main,
+      .cp-pre-side {
+        min-height: 280px;
       }
     }
   </style>
@@ -89,13 +141,20 @@
         >
           {{ page_title }}
         </div>
+
         <div class="subtitle cp-subtitle">
-          read-only runner view through demo-app
+          runner status, tasks, decisions and runs through demo-app
         </div>
       </div>
 
       <div class="cp-topbar-right">
-        <a class="btn top-link-btn" href="/" style="text-decoration: none;">back to demo</a>
+        <a
+          class="btn primary cp-link-btn"
+          href="/"
+          title="Back to demo app"
+        >
+          back to demo
+        </a>
 
         <div class="powerline" id="powerline">
           <div class="seg" id="pl-seg-app">
@@ -117,31 +176,49 @@
   </header>
 
   <main class="container">
-    <section class="cp-stack">
-      <div class="card cp-card">
-        <div class="cp-card-head">
-          <div class="card-title step-title">1. Runner summary</div>
-          <div class="btn-row" role="group" aria-label="summary">
-            <button id="btn-refresh-all" class="btn primary" type="button">refresh all</button>
-            <button id="btn-auto" class="btn" type="button">auto: on</button>
+    <div class="card cp-summary-card">
+      <div class="cp-card-head">
+        <div class="card-title step-title">1. Runner summary</div>
+
+        <div class="btn-row" role="group" aria-label="summary controls">
+          <button id="btn-refresh-all" class="btn primary" type="button">refresh all</button>
+          <button id="btn-auto" class="btn" type="button">auto: on</button>
+        </div>
+      </div>
+
+      <div class="cp-badge-row">
+        <div class="cp-badge">
+          <span class="cp-badge-dot"></span>
+          <span>read-only control-plane</span>
+        </div>
+        <div class="cp-badge">
+          <span>internal runner API via demo-app</span>
+        </div>
+      </div>
+
+      <pre id="summary-out" class="pre pre-client cp-pre-summary">(loading)</pre>
+    </div>
+
+    <section class="layout-2col" style="margin-top: 18px;">
+      <div class="col-left">
+        <div class="card">
+          <div class="card-title step-title">2. Recent tasks</div>
+          <pre id="tasks-out" class="pre pre-logs cp-pre-main">(loading)</pre>
+        </div>
+      </div>
+
+      <div class="col-right">
+        <div class="cp-right-stack">
+          <div class="card">
+            <div class="card-title step-title">3. Recent decisions</div>
+            <pre id="decisions-out" class="pre pre-alerts cp-pre-side">(loading)</pre>
+          </div>
+
+          <div class="card">
+            <div class="card-title step-title">4. Recent runs</div>
+            <pre id="runs-out" class="pre pre-logs cp-pre-side">(loading)</pre>
           </div>
         </div>
-        <pre id="summary-out" class="pre pre-client cp-pre-summary">(loading)</pre>
-      </div>
-
-      <div class="card cp-card">
-        <div class="card-title step-title">2. Recent tasks</div>
-        <pre id="tasks-out" class="pre pre-logs cp-pre">(loading)</pre>
-      </div>
-
-      <div class="card cp-card">
-        <div class="card-title step-title">3. Recent decisions</div>
-        <pre id="decisions-out" class="pre pre-alerts cp-pre">(loading)</pre>
-      </div>
-
-      <div class="card cp-card">
-        <div class="card-title step-title">4. Recent runs</div>
-        <pre id="runs-out" class="pre pre-alerts cp-pre">(loading)</pre>
       </div>
     </section>
   </main>
