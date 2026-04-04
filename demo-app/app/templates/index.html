@@ -6,11 +6,59 @@
   <title>{{ app_name }}</title>
   <link rel="stylesheet" href="/static/app.css?v=20260308-4" />
   <script defer src="/static/app.js?v=20260308-4"></script>
+  <style>
+    .topbar-mainline {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: nowrap;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      flex-wrap: nowrap;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .subtitle-nowrap {
+      white-space: nowrap;
+    }
+
+    .top-link-btn {
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 1180px) {
+      .topbar-mainline {
+        flex-wrap: wrap;
+      }
+
+      .topbar-actions {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        white-space: normal;
+      }
+
+      .subtitle-nowrap {
+        white-space: normal;
+      }
+    }
+  </style>
 </head>
 
 <body>
   <header class="container">
-    <div class="topbar">
+    <div class="topbar topbar-mainline">
       <div class="brand">
         <div
           class="title"
@@ -20,19 +68,18 @@
           {{ app_name }}
         </div>
 
-        <div class="subtitle">
+        <div class="subtitle subtitle-nowrap">
           logs → Loki, metrics → Prometheus, alerts → Alertmanager
         </div>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <div class="topbar-actions">
         <a
-          class="btn primary"
+          class="btn primary top-link-btn"
           href="/control-plane"
-          title="Open control-plane"
-          style="text-decoration: none;"
+          title="Open /control-plane"
         >
-          control-plane
+          open /control-plane
         </a>
 
         <div class="powerline" id="powerline">
@@ -49,7 +96,6 @@
           <div class="seg" id="pl-seg-time">
             <span class="k">time</span><span class="v" id="pl-time">--:--:--</span>
           </div>
-          <!-- theme switch injected by JS -->
         </div>
       </div>
     </div>
@@ -57,7 +103,6 @@
 
   <main class="container">
     <section class="layout-2col">
-
       <div class="col-left">
         <div class="card">
           <div class="card-title step-title">1. Traffic generator</div>
@@ -136,10 +181,8 @@
               </div>
             </div>
           </div>
-
         </div>
       </div>
-
     </section>
   </main>
 </body>
