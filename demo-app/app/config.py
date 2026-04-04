@@ -34,6 +34,15 @@ def _env_float(name: str, default: float, *, min_v: float | None = None, max_v: 
     return v
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name, "true" if default else "false").strip().lower()
+    if raw in {"1", "true", "yes", "y", "on"}:
+        return True
+    if raw in {"0", "false", "no", "n", "off"}:
+        return False
+    raise RuntimeError(f"{name} must be boolean-like, got {raw!r}")
+
+
 def _split_csv(raw: str) -> list[str]:
     raw = (raw or "").strip()
     if not raw:
@@ -64,6 +73,9 @@ class Settings:
 
     ready_urls: list[str]
 
+    control_plane_enabled: bool
+    action_runner_url: str
+
     @staticmethod
     def load() -> "Settings":
         app_name = _env_str("APP_NAME", "demo-app")
@@ -83,6 +95,9 @@ class Settings:
 
         ready_urls = _split_csv(_env_str("READY_URLS", ""))
 
+        control_plane_enabled = _env_bool("CONTROL_PLANE_ENABLED", True)
+        action_runner_url = _env_str("ACTION_RUNNER_URL", "http://172.19.0.1:8088").rstrip("/")
+
         return Settings(
             app_name=app_name,
             env=env,
@@ -96,4 +111,6 @@ class Settings:
             alertmanager_url=alertmanager_url,
             http_timeout_s=http_timeout_s,
             ready_urls=ready_urls,
+            control_plane_enabled=control_plane_enabled,
+            action_runner_url=action_runner_url,
         )

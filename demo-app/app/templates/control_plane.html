@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en" data-app="{{ app_name }}" data-env="{{ env }}" data-theme="terminal">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ page_title }}</title>
+  <link rel="stylesheet" href="/static/app.css?v=20260404-1" />
+  <script defer src="/static/control_plane.js?v=20260404-1"></script>
+</head>
+
+<body>
+  <header class="container">
+    <div class="topbar">
+      <div class="brand">
+        <div
+          class="title"
+          id="app-name"
+          style="font-family: var(--mono); font-weight: 900; letter-spacing: 0.6px;"
+        >
+          {{ page_title }}
+        </div>
+        <div class="subtitle">
+          read-only runner view through demo-app
+        </div>
+      </div>
+
+      <div class="powerline" id="powerline">
+        <div class="seg" id="pl-seg-app">
+          <span class="k">app</span><span class="v" id="pl-app">{{ app_name }}</span>
+        </div>
+        <div class="seg" id="pl-seg-env">
+          <span class="k">env</span><span class="v" id="pl-env">{{ env }}</span>
+        </div>
+        <div class="seg" id="pl-seg-status">
+          <span class="dot" id="pl-dot"></span>
+          <span class="k">runner</span><span class="v" id="pl-status">?</span>
+        </div>
+        <div class="seg" id="pl-seg-time">
+          <span class="k">time</span><span class="v" id="pl-time">--:--:--</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="layout-2col">
+      <div class="col-left">
+        <div class="card">
+          <div class="card-title step-title">1. Runner summary</div>
+
+          <div class="btn-row" role="group" aria-label="summary">
+            <button id="btn-refresh-all" class="btn primary" type="button">refresh all</button>
+            <button id="btn-auto" class="btn" type="button">auto: on</button>
+            <a class="btn link" href="/">back to demo</a>
+          </div>
+
+          <pre id="summary-out" class="pre pre-client">(loading)</pre>
+        </div>
+
+        <div class="card" style="margin-top: 18px;">
+          <div class="card-title step-title">2. Recent tasks</div>
+          <pre id="tasks-out" class="pre pre-logs">(loading)</pre>
+        </div>
+      </div>
+
+      <div class="col-right">
+        <div class="card sticky-panel">
+          <div class="card-title step-title">3. Recent decisions</div>
+          <pre id="decisions-out" class="pre pre-alerts">(loading)</pre>
+
+          <div class="card-title step-title" style="margin-top: 18px;">4. Recent runs</div>
+          <pre id="runs-out" class="pre pre-alerts">(loading)</pre>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -148,6 +148,8 @@ services:
     environment:
       APP_VERSION: "${DEMO_APP_TAG:-latest}"
       READY_URLS: "http://loki:3100/ready,http://alertmanager:9093/-/ready"
+      CONTROL_PLANE_ENABLED: "true"
+      ACTION_RUNNER_URL: "http://172.19.0.1:8088"
     healthcheck:
       test:
         - CMD

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import httpx
 
@@ -94,3 +94,41 @@ class LokiClient:
             for _ts, line in (stream.get("values") or []):
                 lines.append(line)
         return lines
+
+
+class ActionRunnerClient:
+    def __init__(self, http: httpx.AsyncClient, base_url: str) -> None:
+        self.http = http
+        self.base_url = base_url.rstrip("/")
+
+    async def _get_json(self, path: str) -> dict[str, Any]:
+        r = await self.http.get(f"{self.base_url}{path}")
+        r.raise_for_status()
+        data = r.json()
+        if not isinstance(data, dict):
+            raise RuntimeError(f"invalid JSON from action-runner path={path!r}")
+        return data
+
+    async def get_health(self) -> dict[str, Any]:
+        return await self._get_json("/healthz")
+
+    async def get_tasks(self) -> list[dict[str, Any]]:
+        data = await self._get_json("/tasks")
+        tasks = data.get("tasks", [])
+        if not isinstance(tasks, list):
+            raise RuntimeError("invalid tasks payload")
+        return [t for t in tasks if isinstance(t, dict)]
+
+    async def get_decisions(self) -> list[dict[str, Any]]:
+        data = await self._get_json("/decisions")
+        decisions = data.get("decisions", [])
+        if not isinstance(decisions, list):
+            raise RuntimeError("invalid decisions payload")
+        return [d for d in decisions if isinstance(d, dict)]
+
+    async def get_runs(self) -> list[dict[str, Any]]:
+        data = await self._get_json("/runs")
+        runs = data.get("runs", [])
+        if not isinstance(runs, list):
+            raise RuntimeError("invalid runs payload")
+        return [r for r in runs if isinstance(r, dict)]
