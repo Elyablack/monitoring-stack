@@ -25,21 +25,32 @@
         </div>
       </div>
 
-      <div class="powerline" id="powerline">
-        <div class="seg" id="pl-seg-app">
-          <span class="k">app</span><span class="v" id="pl-app">{{ app_name }}</span>
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <a
+          class="btn primary"
+          href="/control-plane"
+          title="Open control-plane"
+          style="text-decoration: none;"
+        >
+          control-plane
+        </a>
+
+        <div class="powerline" id="powerline">
+          <div class="seg" id="pl-seg-app">
+            <span class="k">app</span><span class="v" id="pl-app">{{ app_name }}</span>
+          </div>
+          <div class="seg" id="pl-seg-env">
+            <span class="k">env</span><span class="v" id="pl-env">{{ env }}</span>
+          </div>
+          <div class="seg" id="pl-seg-status">
+            <span class="dot" id="pl-dot"></span>
+            <span class="k">status</span><span class="v" id="pl-status">?</span>
+          </div>
+          <div class="seg" id="pl-seg-time">
+            <span class="k">time</span><span class="v" id="pl-time">--:--:--</span>
+          </div>
+          <!-- theme switch injected by JS -->
         </div>
-        <div class="seg" id="pl-seg-env">
-          <span class="k">env</span><span class="v" id="pl-env">{{ env }}</span>
-        </div>
-        <div class="seg" id="pl-seg-status">
-          <span class="dot" id="pl-dot"></span>
-          <span class="k">status</span><span class="v" id="pl-status">?</span>
-        </div>
-        <div class="seg" id="pl-seg-time">
-          <span class="k">time</span><span class="v" id="pl-time">--:--:--</span>
-        </div>
-        <!-- theme switch injected by JS -->
       </div>
     </div>
   </header>
