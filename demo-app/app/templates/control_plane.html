@@ -1,12 +1,10 @@
-/srv/monitoring/demo-app/app/templates/control_plane.html
-
 <!doctype html>
 <html lang="en" data-app="{{ app_name }}" data-env="{{ env }}" data-theme="terminal">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ page_title }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260404-2" />
+  <link rel="stylesheet" href="/static/app.css?v=20260404-3" />
   <script defer src="/static/control_plane.js?v=20260404-2"></script>
   <style>
     .cp-topbar {
@@ -42,27 +40,6 @@
       gap: 12px;
       flex-wrap: wrap;
       margin-bottom: 12px;
-    }
-
-    .cp-pre-summary {
-      min-height: 170px;
-      overflow: auto;
-    }
-
-    .cp-pre-main {
-      min-height: 520px;
-      overflow: auto;
-    }
-
-    .cp-pre-side {
-      min-height: 250px;
-      overflow: auto;
-    }
-
-    .cp-right-stack {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 18px;
     }
 
     .cp-link-btn {
@@ -104,6 +81,28 @@
       box-shadow: 0 0 12px rgba(46, 204, 113, 0.45);
     }
 
+    .cp-pre-summary {
+      min-height: 170px;
+      overflow: auto;
+    }
+
+    .cp-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+      align-items: start;
+    }
+
+    .cp-grid-card {
+      min-width: 0;
+    }
+
+    .cp-grid-pre {
+      min-height: 420px;
+      overflow: auto;
+    }
+
     @media (max-width: 1240px) {
       .cp-topbar {
         flex-wrap: wrap;
@@ -119,11 +118,12 @@
       .cp-subtitle {
         white-space: normal;
       }
-    }
 
-    @media (max-width: 1080px) {
-      .cp-pre-main,
-      .cp-pre-side {
+      .cp-grid-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .cp-grid-pre {
         min-height: 280px;
       }
     }
@@ -191,34 +191,25 @@
           <span class="cp-badge-dot"></span>
           <span>read-only control-plane</span>
         </div>
-        <div class="cp-badge">
-          <span>internal runner API via demo-app</span>
-        </div>
       </div>
 
       <pre id="summary-out" class="pre pre-client cp-pre-summary">(loading)</pre>
     </div>
 
-    <section class="layout-2col" style="margin-top: 18px;">
-      <div class="col-left">
-        <div class="card">
-          <div class="card-title step-title">2. Recent tasks</div>
-          <pre id="tasks-out" class="pre pre-logs cp-pre-main">(loading)</pre>
-        </div>
+    <section class="cp-grid-3">
+      <div class="card cp-grid-card">
+        <div class="card-title step-title">2. Recent tasks</div>
+        <pre id="tasks-out" class="pre pre-logs cp-grid-pre">(loading)</pre>
       </div>
 
-      <div class="col-right">
-        <div class="cp-right-stack">
-          <div class="card">
-            <div class="card-title step-title">3. Recent decisions</div>
-            <pre id="decisions-out" class="pre pre-alerts cp-pre-side">(loading)</pre>
-          </div>
+      <div class="card cp-grid-card">
+        <div class="card-title step-title">3. Recent decisions</div>
+        <pre id="decisions-out" class="pre pre-alerts cp-grid-pre">(loading)</pre>
+      </div>
 
-          <div class="card">
-            <div class="card-title step-title">4. Recent runs</div>
-            <pre id="runs-out" class="pre pre-logs cp-pre-side">(loading)</pre>
-          </div>
-        </div>
+      <div class="card cp-grid-card">
+        <div class="card-title step-title">4. Recent runs</div>
+        <pre id="runs-out" class="pre pre-logs cp-grid-pre">(loading)</pre>
       </div>
     </section>
   </main>
