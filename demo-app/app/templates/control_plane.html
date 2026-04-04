@@ -6,11 +6,81 @@
   <title>{{ page_title }}</title>
   <link rel="stylesheet" href="/static/app.css?v=20260404-1" />
   <script defer src="/static/control_plane.js?v=20260404-1"></script>
+  <style>
+    .cp-topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: nowrap;
+    }
+
+    .cp-topbar-right {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      flex-wrap: nowrap;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .cp-subtitle {
+      white-space: nowrap;
+    }
+
+    .cp-stack {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+      margin-top: 22px;
+    }
+
+    .cp-card {
+      width: 100%;
+    }
+
+    .cp-pre {
+      min-height: 240px;
+      overflow: auto;
+    }
+
+    .cp-pre-summary {
+      min-height: 170px;
+      overflow: auto;
+    }
+
+    .cp-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    @media (max-width: 1180px) {
+      .cp-topbar {
+        flex-wrap: wrap;
+      }
+
+      .cp-topbar-right {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        white-space: normal;
+      }
+
+      .cp-subtitle {
+        white-space: normal;
+      }
+    }
+  </style>
 </head>
 
 <body>
   <header class="container">
-    <div class="topbar">
+    <div class="topbar cp-topbar">
       <div class="brand">
         <div
           class="title"
@@ -19,58 +89,59 @@
         >
           {{ page_title }}
         </div>
-        <div class="subtitle">
+        <div class="subtitle cp-subtitle">
           read-only runner view through demo-app
         </div>
       </div>
 
-      <div class="powerline" id="powerline">
-        <div class="seg" id="pl-seg-app">
-          <span class="k">app</span><span class="v" id="pl-app">{{ app_name }}</span>
-        </div>
-        <div class="seg" id="pl-seg-env">
-          <span class="k">env</span><span class="v" id="pl-env">{{ env }}</span>
-        </div>
-        <div class="seg" id="pl-seg-status">
-          <span class="dot" id="pl-dot"></span>
-          <span class="k">runner</span><span class="v" id="pl-status">?</span>
-        </div>
-        <div class="seg" id="pl-seg-time">
-          <span class="k">time</span><span class="v" id="pl-time">--:--:--</span>
+      <div class="cp-topbar-right">
+        <a class="btn top-link-btn" href="/" style="text-decoration: none;">back to demo</a>
+
+        <div class="powerline" id="powerline">
+          <div class="seg" id="pl-seg-app">
+            <span class="k">app</span><span class="v" id="pl-app">{{ app_name }}</span>
+          </div>
+          <div class="seg" id="pl-seg-env">
+            <span class="k">env</span><span class="v" id="pl-env">{{ env }}</span>
+          </div>
+          <div class="seg" id="pl-seg-status">
+            <span class="dot" id="pl-dot"></span>
+            <span class="k">runner</span><span class="v" id="pl-status">?</span>
+          </div>
+          <div class="seg" id="pl-seg-time">
+            <span class="k">time</span><span class="v" id="pl-time">--:--:--</span>
+          </div>
         </div>
       </div>
     </div>
   </header>
 
   <main class="container">
-    <section class="layout-2col">
-      <div class="col-left">
-        <div class="card">
+    <section class="cp-stack">
+      <div class="card cp-card">
+        <div class="cp-card-head">
           <div class="card-title step-title">1. Runner summary</div>
-
           <div class="btn-row" role="group" aria-label="summary">
             <button id="btn-refresh-all" class="btn primary" type="button">refresh all</button>
             <button id="btn-auto" class="btn" type="button">auto: on</button>
-            <a class="btn link" href="/">back to demo</a>
           </div>
-
-          <pre id="summary-out" class="pre pre-client">(loading)</pre>
         </div>
-
-        <div class="card" style="margin-top: 18px;">
-          <div class="card-title step-title">2. Recent tasks</div>
-          <pre id="tasks-out" class="pre pre-logs">(loading)</pre>
-        </div>
+        <pre id="summary-out" class="pre pre-client cp-pre-summary">(loading)</pre>
       </div>
 
-      <div class="col-right">
-        <div class="card sticky-panel">
-          <div class="card-title step-title">3. Recent decisions</div>
-          <pre id="decisions-out" class="pre pre-alerts">(loading)</pre>
+      <div class="card cp-card">
+        <div class="card-title step-title">2. Recent tasks</div>
+        <pre id="tasks-out" class="pre pre-logs cp-pre">(loading)</pre>
+      </div>
 
-          <div class="card-title step-title" style="margin-top: 18px;">4. Recent runs</div>
-          <pre id="runs-out" class="pre pre-alerts">(loading)</pre>
-        </div>
+      <div class="card cp-card">
+        <div class="card-title step-title">3. Recent decisions</div>
+        <pre id="decisions-out" class="pre pre-alerts cp-pre">(loading)</pre>
+      </div>
+
+      <div class="card cp-card">
+        <div class="card-title step-title">4. Recent runs</div>
+        <pre id="runs-out" class="pre pre-alerts cp-pre">(loading)</pre>
       </div>
     </section>
   </main>
