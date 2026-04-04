@@ -24,6 +24,12 @@ scrape_configs:
         labels:
           instance_name: "demo-app"
 
+  - job_name: "action-runner"
+    static_configs:
+      - targets: ["172.19.0.1:8088"]
+        labels:
+          instance_name: "action-runner"
+
 alerting:
   alertmanagers:
     - static_configs:
