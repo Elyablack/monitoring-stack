@@ -1,6 +1,8 @@
+# /srv/monitoring/demo-app/app/main.py
 from __future__ import annotations
 
 import asyncio
+import re
 from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
@@ -22,6 +24,14 @@ from .rate_limit import SlidingWindowRateLimiter, rate_limit_response
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
+
+_URL_RE = re.compile(r"https?://[^\s]+", re.IGNORECASE)
+_IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+_HOSTPORT_RE = re.compile(r"\b[a-zA-Z0-9._-]+:\d{2,5}\b")
+_INTERNAL_WORDS_RE = re.compile(
+    r"\b(?:alertmanager|loki|prometheus|grafana|tg-relay|demo-app|action-runner|localhost|host\.docker\.internal)\b",
+    re.IGNORECASE,
+)
 
 
 def create_app() -> FastAPI:
@@ -59,6 +69,67 @@ def create_app() -> FastAPI:
             counter[status] += 1
         return dict(sorted(counter.items()))
 
+    def _sanitize_text(value: Any, *, max_len: int = 120) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        if not text:
+            return None
+
+        text = _URL_RE.sub("[redacted-url]", text)
+        text = _IPV4_RE.sub("[redacted-ip]", text)
+        text = _HOSTPORT_RE.sub("[redacted-hostport]", text)
+        text = _INTERNAL_WORDS_RE.sub("[redacted]", text)
+        text = " ".join(text.split())
+
+        if len(text) > max_len:
+            return text[: max_len - 1] + "…"
+        return text
+
+    def _sanitize_health(health: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "status": str(health.get("status") or "unknown"),
+            "service": "action-runner",
+            "rules_loaded": int(health.get("rules_loaded", 0) or 0),
+        }
+
+    def _sanitize_task(task: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "id": task.get("id"),
+            "task_type": task.get("task_type"),
+            "status": task.get("status"),
+            "priority": task.get("priority"),
+            "decision_id": task.get("decision_id"),
+            "created_at": task.get("created_at"),
+            "started_at": task.get("started_at"),
+            "finished_at": task.get("finished_at"),
+            "has_error": bool(task.get("error")),
+            "has_result": bool(task.get("result_json") or task.get("result")),
+        }
+
+    def _sanitize_decision(decision: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "id": decision.get("id"),
+            "created_at": decision.get("created_at"),
+            "status": decision.get("status"),
+            "severity": decision.get("severity"),
+            "alertname": _sanitize_text(decision.get("alertname"), max_len=48),
+            "decision": decision.get("decision"),
+            "action": _sanitize_text(decision.get("action"), max_len=48),
+            "reason": _sanitize_text(decision.get("reason"), max_len=72),
+        }
+
+    def _sanitize_run(run: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "id": run.get("id"),
+            "action": _sanitize_text(run.get("action"), max_len=48),
+            "status": run.get("status"),
+            "trigger_type": run.get("trigger_type"),
+            "started_at": run.get("started_at"),
+            "finished_at": run.get("finished_at"),
+            "has_error": bool(run.get("error")),
+        }
+
     def _summary_payload(
         *,
         health: dict[str, Any],
@@ -72,11 +143,7 @@ def create_app() -> FastAPI:
 
         return {
             "ok": True,
-            "runner": {
-                "status": health.get("status", "unknown"),
-                "service": health.get("service", "action-runner"),
-                "rules_loaded": int(health.get("rules_loaded", 0) or 0),
-            },
+            "runner": _sanitize_health(health),
             "totals": {
                 "tasks": len(tasks),
                 "decisions": len(decisions),
@@ -84,9 +151,9 @@ def create_app() -> FastAPI:
             },
             "task_status_counts": _status_counts(tasks),
             "run_status_counts": _status_counts(runs),
-            "last_task": tasks_recent[0] if tasks_recent else None,
-            "last_decision": decisions_recent[0] if decisions_recent else None,
-            "last_run": runs_recent[0] if runs_recent else None,
+            "last_task": _sanitize_task(tasks_recent[0]) if tasks_recent else None,
+            "last_decision": _sanitize_decision(decisions_recent[0]) if decisions_recent else None,
+            "last_run": _sanitize_run(runs_recent[0]) if runs_recent else None,
         }
 
     @app.on_event("startup")
@@ -233,9 +300,9 @@ def create_app() -> FastAPI:
 
         try:
             health = await app.state.runner.get_health()
-            return {"ok": True, "health": health}
-        except Exception as e:
-            return JSONResponse({"ok": False, "error": str(e)}, status_code=502)
+            return {"ok": True, "health": _sanitize_health(health)}
+        except Exception:
+            return JSONResponse({"ok": False, "error": "runner unavailable"}, status_code=502)
 
     @app.get("/api/control-plane/tasks")
     async def control_plane_tasks(limit: int = 50):
@@ -245,9 +312,10 @@ def create_app() -> FastAPI:
         safe_limit = max(1, min(limit, 200))
         try:
             tasks = _sort_recent(await app.state.runner.get_tasks())
-            return {"ok": True, "count": len(tasks), "tasks": tasks[:safe_limit]}
-        except Exception as e:
-            return JSONResponse({"ok": False, "error": str(e)}, status_code=502)
+            public_tasks = [_sanitize_task(t) for t in tasks[:safe_limit]]
+            return {"ok": True, "count": len(tasks), "tasks": public_tasks}
+        except Exception:
+            return JSONResponse({"ok": False, "error": "runner unavailable"}, status_code=502)
 
     @app.get("/api/control-plane/decisions")
     async def control_plane_decisions(limit: int = 50):
@@ -257,9 +325,10 @@ def create_app() -> FastAPI:
         safe_limit = max(1, min(limit, 200))
         try:
             decisions = _sort_recent(await app.state.runner.get_decisions())
-            return {"ok": True, "count": len(decisions), "decisions": decisions[:safe_limit]}
-        except Exception as e:
-            return JSONResponse({"ok": False, "error": str(e)}, status_code=502)
+            public_decisions = [_sanitize_decision(d) for d in decisions[:safe_limit]]
+            return {"ok": True, "count": len(decisions), "decisions": public_decisions}
+        except Exception:
+            return JSONResponse({"ok": False, "error": "runner unavailable"}, status_code=502)
 
     @app.get("/api/control-plane/runs")
     async def control_plane_runs(limit: int = 50):
@@ -269,9 +338,10 @@ def create_app() -> FastAPI:
         safe_limit = max(1, min(limit, 200))
         try:
             runs = _sort_recent(await app.state.runner.get_runs())
-            return {"ok": True, "count": len(runs), "runs": runs[:safe_limit]}
-        except Exception as e:
-            return JSONResponse({"ok": False, "error": str(e)}, status_code=502)
+            public_runs = [_sanitize_run(r) for r in runs[:safe_limit]]
+            return {"ok": True, "count": len(runs), "runs": public_runs}
+        except Exception:
+            return JSONResponse({"ok": False, "error": "runner unavailable"}, status_code=502)
 
     @app.get("/api/control-plane/summary")
     async def control_plane_summary():
@@ -286,11 +356,10 @@ def create_app() -> FastAPI:
                 app.state.runner.get_runs(),
             )
             return _summary_payload(health=health, tasks=tasks, decisions=decisions, runs=runs)
-        except Exception as e:
-            return JSONResponse({"ok": False, "error": str(e)}, status_code=502)
+        except Exception:
+            return JSONResponse({"ok": False, "error": "runner unavailable"}, status_code=502)
 
     return app
 
 
 app = create_app()
-
