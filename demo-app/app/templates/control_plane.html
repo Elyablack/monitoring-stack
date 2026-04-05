@@ -124,6 +124,14 @@
       align-items: stretch;
     }
 
+    .cp-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+      align-items: start;
+    }
+
     .cp-grid-card {
       min-width: 0;
     }
@@ -161,6 +169,40 @@
     .cp-grid-pre-sm {
       min-height: 180px;
       overflow: auto;
+    }
+
+    .cp-links {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .cp-link-card {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      border: 1px solid rgba(120, 120, 120, 0.25);
+      border-radius: 14px;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.02);
+      transition: transform 0.12s ease, border-color 0.12s ease;
+    }
+
+    .cp-link-card:hover {
+      transform: translateY(-1px);
+      border-color: rgba(70, 200, 120, 0.45);
+    }
+
+    .cp-link-title {
+      font-family: var(--mono);
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .cp-link-text {
+      opacity: 0.9;
+      font-size: 0.95rem;
     }
 
     .cp-links {
@@ -338,6 +380,31 @@
           </select>
         </div>
         <pre id="runs-out" class="pre pre-logs cp-grid-pre">(loading)</pre>
+      </div>
+    </section>
+
+    <section class="cp-grid-2">
+      <div class="card cp-grid-card">
+        <div class="card-title step-title">5. Outcomes</div>
+        <pre id="outcomes-out" class="pre pre-client cp-grid-pre-sm">(loading)</pre>
+      </div>
+
+      <div class="card cp-grid-card">
+        <div class="card-title step-title">6. Observability</div>
+        <div class="cp-links">
+          <a class="cp-link-card" href="/control-plane" target="_blank" rel="noopener noreferrer">
+            <div class="cp-link-title">Control plane</div>
+            <div class="cp-link-text">Main public pipeline UI.</div>
+          </a>
+          <a class="cp-link-card" href="https://demo.142.93.143.228.nip.io/" target="_blank" rel="noopener noreferrer">
+            <div class="cp-link-title">Demo app</div>
+            <div class="cp-link-text">Traffic generator and observability demo surface.</div>
+          </a>
+          <a class="cp-link-card" href="https://github.com/Elyablack/monitoring-stack/blob/main/docs/runbook.md" target="_blank" rel="noopener noreferrer">
+            <div class="cp-link-title">Runbook</div>
+            <div class="cp-link-text">Operational notes and alert investigation steps.</div>
+          </a>
+        </div>
       </div>
     </section>
 
