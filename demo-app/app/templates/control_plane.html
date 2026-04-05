@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ page_title }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260405-1" />
+  <link rel="stylesheet" href="/static/app.css?v=20260405-2" />
   <script defer src="/static/control_plane.js?v=20260405-1"></script>
   <style>
     .cp-topbar {
@@ -113,7 +113,7 @@
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 18px;
       margin-top: 18px;
-      align-items: start;
+      align-items: stretch;
     }
 
     .cp-grid-2 {
@@ -121,16 +121,41 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 18px;
       margin-top: 18px;
-      align-items: start;
+      align-items: stretch;
     }
 
     .cp-grid-card {
       min-width: 0;
     }
 
+    .cp-pipeline-card {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 10px;
+      height: 100%;
+    }
+
+    .cp-pipeline-title {
+      margin: 0;
+    }
+
+    .cp-filter-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+    }
+
+    .cp-filter-row .input {
+      width: 100%;
+      max-width: 180px;
+    }
+
     .cp-grid-pre {
       min-height: 380px;
+      height: 100%;
       overflow: auto;
+      margin: 0;
     }
 
     .cp-grid-pre-sm {
@@ -271,52 +296,46 @@
     </div>
 
     <section class="cp-grid-3">
-      <div class="card cp-grid-card">
-        <div class="cp-card-head">
-          <div class="card-title step-title">2. Decisions</div>
-          <div class="cp-control-group">
-            <label class="cp-label" for="decision-filter">filter</label>
-            <select id="decision-filter" class="input mono">
-              <option value="all">all</option>
-              <option value="execute">execute</option>
-              <option value="execute_chain">execute_chain</option>
-              <option value="ignore">ignore</option>
-              <option value="cooldown">cooldown</option>
-            </select>
-          </div>
+      <div class="card cp-grid-card cp-pipeline-card">
+        <div class="card-title step-title cp-pipeline-title">2. Decisions</div>
+        <div class="cp-filter-row">
+          <label class="cp-label" for="decision-filter">filter</label>
+          <select id="decision-filter" class="input mono">
+            <option value="all">all</option>
+            <option value="execute">execute</option>
+            <option value="execute_chain">execute_chain</option>
+            <option value="ignore">ignore</option>
+            <option value="cooldown">cooldown</option>
+          </select>
         </div>
         <pre id="decisions-out" class="pre pre-alerts cp-grid-pre">(loading)</pre>
       </div>
 
-      <div class="card cp-grid-card">
-        <div class="cp-card-head">
-          <div class="card-title step-title">3. Task orchestration</div>
-          <div class="cp-control-group">
-            <label class="cp-label" for="task-filter">filter</label>
-            <select id="task-filter" class="input mono">
-              <option value="all">all</option>
-              <option value="success">success</option>
-              <option value="failed">failed</option>
-              <option value="running">running</option>
-            </select>
-          </div>
+      <div class="card cp-grid-card cp-pipeline-card">
+        <div class="card-title step-title cp-pipeline-title">3. Task orchestration</div>
+        <div class="cp-filter-row">
+          <label class="cp-label" for="task-filter">filter</label>
+          <select id="task-filter" class="input mono">
+            <option value="all">all</option>
+            <option value="success">success</option>
+            <option value="failed">failed</option>
+            <option value="running">running</option>
+          </select>
         </div>
         <pre id="tasks-out" class="pre pre-logs cp-grid-pre">(loading)</pre>
       </div>
 
-      <div class="card cp-grid-card">
-        <div class="cp-card-head">
-          <div class="card-title step-title">4. Executions</div>
-          <div class="cp-control-group">
-            <label class="cp-label" for="run-filter">filter</label>
-            <select id="run-filter" class="input mono">
-              <option value="all">all</option>
-              <option value="success">success</option>
-              <option value="failed">failed</option>
-              <option value="running">running</option>
-              <option value="skipped">skipped</option>
-            </select>
-          </div>
+      <div class="card cp-grid-card cp-pipeline-card">
+        <div class="card-title step-title cp-pipeline-title">4. Executions</div>
+        <div class="cp-filter-row">
+          <label class="cp-label" for="run-filter">filter</label>
+          <select id="run-filter" class="input mono">
+            <option value="all">all</option>
+            <option value="success">success</option>
+            <option value="failed">failed</option>
+            <option value="running">running</option>
+            <option value="skipped">skipped</option>
+          </select>
         </div>
         <pre id="runs-out" class="pre pre-logs cp-grid-pre">(loading)</pre>
       </div>
