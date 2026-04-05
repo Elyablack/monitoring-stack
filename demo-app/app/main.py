@@ -1,10 +1,10 @@
-# /srv/monitoring/demo-app/app/main.py
 from __future__ import annotations
 
 import asyncio
 import re
 from collections import Counter
 from dataclasses import asdict
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -33,6 +33,13 @@ _INTERNAL_WORDS_RE = re.compile(
     re.IGNORECASE,
 )
 
+WINDOW_TO_DELTA: dict[str, timedelta] = {
+    "1h": timedelta(hours=1),
+    "6h": timedelta(hours=6),
+    "24h": timedelta(hours=24),
+}
+DEFAULT_WINDOW = "24h"
+
 
 def create_app() -> FastAPI:
     settings = Settings.load()
@@ -45,20 +52,49 @@ def create_app() -> FastAPI:
     metrics = Metrics(service=settings.app_name)
     limiter = SlidingWindowRateLimiter(limit=settings.rate_limit, window_s=settings.rate_window_s)
 
+    def _now_utc() -> datetime:
+        return datetime.now(timezone.utc)
+
+    def _parse_iso_ts(value: Any) -> Optional[datetime]:
+        if value is None:
+            return None
+        text = str(value).strip()
+        if not text:
+            return None
+        try:
+            if text.endswith("Z"):
+                text = text[:-1] + "+00:00"
+            dt = datetime.fromisoformat(text)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+        except Exception:
+            return None
+
+    def _age_seconds_from_dt(dt: Optional[datetime]) -> Optional[int]:
+        if dt is None:
+            return None
+        return max(0, int((_now_utc() - dt).total_seconds()))
+
+    def _safe_window(raw: str) -> str:
+        return raw if raw in WINDOW_TO_DELTA else DEFAULT_WINDOW
+
+    def _window_start(window: str) -> datetime:
+        return _now_utc() - WINDOW_TO_DELTA[_safe_window(window)]
+
     def _sort_recent(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        def sort_key(item: dict[str, Any]) -> tuple[str, int]:
-            created_at = str(
-                item.get("created_at")
-                or item.get("started_at")
-                or item.get("finished_at")
-                or ""
+        def sort_key(item: dict[str, Any]) -> tuple[float, int]:
+            dt = (
+                _parse_iso_ts(item.get("created_at"))
+                or _parse_iso_ts(item.get("started_at"))
+                or _parse_iso_ts(item.get("finished_at"))
             )
-            raw_id = item.get("id")
+            ts = dt.timestamp() if dt else 0.0
             try:
-                item_id = int(raw_id)
+                item_id = int(item.get("id") or 0)
             except Exception:
                 item_id = 0
-            return created_at, item_id
+            return ts, item_id
 
         return sorted(items, key=sort_key, reverse=True)
 
@@ -69,7 +105,40 @@ def create_app() -> FastAPI:
             counter[status] += 1
         return dict(sorted(counter.items()))
 
-    def _sanitize_text(value: Any, *, max_len: int = 120) -> str | None:
+    def _filter_by_window(items: list[dict[str, Any]], window: str) -> list[dict[str, Any]]:
+        start_dt = _window_start(window)
+        out: list[dict[str, Any]] = []
+        for item in items:
+            dt = (
+                _parse_iso_ts(item.get("created_at"))
+                or _parse_iso_ts(item.get("started_at"))
+                or _parse_iso_ts(item.get("finished_at"))
+            )
+            if dt is None:
+                continue
+            if dt >= start_dt:
+                out.append(item)
+        return out
+
+    def _filter_tasks(items: list[dict[str, Any]], *, window: str, status: str) -> list[dict[str, Any]]:
+        out = _filter_by_window(items, window)
+        if status != "all":
+            out = [item for item in out if str(item.get("status") or "").lower() == status]
+        return _sort_recent(out)
+
+    def _filter_decisions(items: list[dict[str, Any]], *, window: str, decision_type: str) -> list[dict[str, Any]]:
+        out = _filter_by_window(items, window)
+        if decision_type != "all":
+            out = [item for item in out if str(item.get("decision") or "").lower() == decision_type]
+        return _sort_recent(out)
+
+    def _filter_runs(items: list[dict[str, Any]], *, window: str, status: str) -> list[dict[str, Any]]:
+        out = _filter_by_window(items, window)
+        if status != "all":
+            out = [item for item in out if str(item.get("status") or "").lower() == status]
+        return _sort_recent(out)
+
+    def _sanitize_text(value: Any, *, max_len: int = 120) -> Optional[str]:
         if value is None:
             return None
         text = str(value).strip()
@@ -94,6 +163,9 @@ def create_app() -> FastAPI:
         }
 
     def _sanitize_task(task: dict[str, Any]) -> dict[str, Any]:
+        created_dt = _parse_iso_ts(task.get("created_at"))
+        started_dt = _parse_iso_ts(task.get("started_at"))
+        finished_dt = _parse_iso_ts(task.get("finished_at"))
         return {
             "id": task.get("id"),
             "task_type": task.get("task_type"),
@@ -103,14 +175,19 @@ def create_app() -> FastAPI:
             "created_at": task.get("created_at"),
             "started_at": task.get("started_at"),
             "finished_at": task.get("finished_at"),
+            "created_age_s": _age_seconds_from_dt(created_dt),
+            "started_age_s": _age_seconds_from_dt(started_dt),
+            "finished_age_s": _age_seconds_from_dt(finished_dt),
             "has_error": bool(task.get("error")),
             "has_result": bool(task.get("result_json") or task.get("result")),
         }
 
     def _sanitize_decision(decision: dict[str, Any]) -> dict[str, Any]:
+        created_dt = _parse_iso_ts(decision.get("created_at"))
         return {
             "id": decision.get("id"),
             "created_at": decision.get("created_at"),
+            "created_age_s": _age_seconds_from_dt(created_dt),
             "status": decision.get("status"),
             "severity": decision.get("severity"),
             "alertname": _sanitize_text(decision.get("alertname"), max_len=48),
@@ -120,6 +197,8 @@ def create_app() -> FastAPI:
         }
 
     def _sanitize_run(run: dict[str, Any]) -> dict[str, Any]:
+        started_dt = _parse_iso_ts(run.get("started_at"))
+        finished_dt = _parse_iso_ts(run.get("finished_at"))
         return {
             "id": run.get("id"),
             "action": _sanitize_text(run.get("action"), max_len=48),
@@ -127,27 +206,137 @@ def create_app() -> FastAPI:
             "trigger_type": run.get("trigger_type"),
             "started_at": run.get("started_at"),
             "finished_at": run.get("finished_at"),
+            "started_age_s": _age_seconds_from_dt(started_dt),
+            "finished_age_s": _age_seconds_from_dt(finished_dt),
             "has_error": bool(run.get("error")),
         }
 
-    def _summary_payload(
+    def _format_age(seconds: Optional[int]) -> str:
+        if seconds is None:
+            return "unknown"
+        if seconds < 60:
+            return f"{seconds}s ago"
+        minutes = seconds // 60
+        if minutes < 60:
+            return f"{minutes}m ago"
+        hours = minutes // 60
+        if hours < 24:
+            return f"{hours}h ago"
+        days = hours // 24
+        return f"{days}d ago"
+
+    def _queue_state(queue_depth: Optional[float]) -> str:
+        if queue_depth is None:
+            return "unknown"
+        if queue_depth <= 0:
+            return "idle"
+        if queue_depth < 5:
+            return "active"
+        return "busy"
+
+    def _human_summary(
         *,
         health: dict[str, Any],
         tasks: list[dict[str, Any]],
         decisions: list[dict[str, Any]],
         runs: list[dict[str, Any]],
+        queue_depth: Optional[float],
+    ) -> dict[str, Any]:
+        runner_ok = str(health.get("status") or "").lower() == "ok"
+        task_status = _status_counts(tasks)
+        run_status = _status_counts(runs)
+        failures = int(task_status.get("failed", 0)) + int(run_status.get("failed", 0))
+        last_decision = _sort_recent(decisions)[:1]
+        last_task = _sort_recent(tasks)[:1]
+        last_run = _sort_recent(runs)[:1]
+
+        latest_age_candidates = [
+            _age_seconds_from_dt(_parse_iso_ts(last_decision[0].get("created_at"))) if last_decision else None,
+            _age_seconds_from_dt(_parse_iso_ts(last_task[0].get("created_at"))) if last_task else None,
+            _age_seconds_from_dt(_parse_iso_ts(last_run[0].get("started_at"))) if last_run else None,
+        ]
+        latest_age_candidates = [value for value in latest_age_candidates if value is not None]
+        last_activity_age = min(latest_age_candidates) if latest_age_candidates else None
+
+        if not runner_ok:
+            level = "degraded"
+            message = "Runner is unavailable. Control-plane data may be stale."
+        elif failures > 0:
+            level = "warning"
+            message = f"Recent activity detected with {failures} failure(s) in the pipeline."
+        elif not decisions and not tasks and not runs:
+            level = "idle"
+            message = "Runner is healthy, but no recent pipeline activity was detected."
+        else:
+            level = "healthy"
+            message = "Runner is healthy and recent pipeline activity was detected."
+
+        return {
+            "level": level,
+            "message": message,
+            "last_activity_age_s": last_activity_age,
+            "last_activity_human": _format_age(last_activity_age),
+            "queue_state": _queue_state(queue_depth),
+            "failures": failures,
+        }
+
+    async def _queue_depth_value() -> Optional[float]:
+        try:
+            response = await app.state.http.get(f"{settings.action_runner_url}/metrics", timeout=2.5)
+            response.raise_for_status()
+            total = 0.0
+            seen = False
+            for line in response.text.splitlines():
+                if not line or line.startswith("#"):
+                    continue
+                if line.startswith("action_runner_queue_depth"):
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        try:
+                            total += float(parts[-1])
+                            seen = True
+                        except ValueError:
+                            pass
+            return total if seen else None
+        except Exception:
+            return None
+
+    def _summary_payload(
+        *,
+        window: str,
+        health: dict[str, Any],
+        tasks: list[dict[str, Any]],
+        decisions: list[dict[str, Any]],
+        runs: list[dict[str, Any]],
+        queue_depth: Optional[float],
     ) -> dict[str, Any]:
         tasks_recent = _sort_recent(tasks)
         decisions_recent = _sort_recent(decisions)
         runs_recent = _sort_recent(runs)
 
+        sanitized_health = _sanitize_health(health)
+        human = _human_summary(
+            health=sanitized_health,
+            tasks=tasks,
+            decisions=decisions,
+            runs=runs,
+            queue_depth=queue_depth,
+        )
+
         return {
             "ok": True,
-            "runner": _sanitize_health(health),
+            "window": window,
+            "runner": sanitized_health,
+            "human_status": human,
             "totals": {
                 "tasks": len(tasks),
                 "decisions": len(decisions),
                 "runs": len(runs),
+                "failures": human["failures"],
+            },
+            "queue": {
+                "depth": queue_depth,
+                "state": human["queue_state"],
             },
             "task_status_counts": _status_counts(tasks),
             "run_status_counts": _status_counts(runs),
@@ -305,57 +494,114 @@ def create_app() -> FastAPI:
             return JSONResponse({"ok": False, "error": "runner unavailable"}, status_code=502)
 
     @app.get("/api/control-plane/tasks")
-    async def control_plane_tasks(limit: int = 50):
+    async def control_plane_tasks(
+        window: str = DEFAULT_WINDOW,
+        task_status: str = "all",
+        limit: int = 50,
+    ):
         if not settings.control_plane_enabled:
             return JSONResponse({"ok": False, "error": "control-plane disabled"}, status_code=404)
 
+        safe_window = _safe_window(window)
         safe_limit = max(1, min(limit, 200))
+        safe_status = str(task_status or "all").strip().lower() or "all"
+
         try:
-            tasks = _sort_recent(await app.state.runner.get_tasks())
-            public_tasks = [_sanitize_task(t) for t in tasks[:safe_limit]]
-            return {"ok": True, "count": len(tasks), "tasks": public_tasks}
+            tasks = await app.state.runner.get_tasks()
+            filtered = _filter_tasks(tasks, window=safe_window, status=safe_status)
+            public_tasks = [_sanitize_task(item) for item in filtered[:safe_limit]]
+            return {
+                "ok": True,
+                "window": safe_window,
+                "task_status": safe_status,
+                "count": len(filtered),
+                "tasks": public_tasks,
+            }
         except Exception:
             return JSONResponse({"ok": False, "error": "runner unavailable"}, status_code=502)
 
     @app.get("/api/control-plane/decisions")
-    async def control_plane_decisions(limit: int = 50):
+    async def control_plane_decisions(
+        window: str = DEFAULT_WINDOW,
+        decision_type: str = "all",
+        limit: int = 50,
+    ):
         if not settings.control_plane_enabled:
             return JSONResponse({"ok": False, "error": "control-plane disabled"}, status_code=404)
 
+        safe_window = _safe_window(window)
         safe_limit = max(1, min(limit, 200))
+        safe_decision_type = str(decision_type or "all").strip().lower() or "all"
+
         try:
-            decisions = _sort_recent(await app.state.runner.get_decisions())
-            public_decisions = [_sanitize_decision(d) for d in decisions[:safe_limit]]
-            return {"ok": True, "count": len(decisions), "decisions": public_decisions}
+            decisions = await app.state.runner.get_decisions()
+            filtered = _filter_decisions(decisions, window=safe_window, decision_type=safe_decision_type)
+            public_decisions = [_sanitize_decision(item) for item in filtered[:safe_limit]]
+            return {
+                "ok": True,
+                "window": safe_window,
+                "decision_type": safe_decision_type,
+                "count": len(filtered),
+                "decisions": public_decisions,
+            }
         except Exception:
             return JSONResponse({"ok": False, "error": "runner unavailable"}, status_code=502)
 
     @app.get("/api/control-plane/runs")
-    async def control_plane_runs(limit: int = 50):
+    async def control_plane_runs(
+        window: str = DEFAULT_WINDOW,
+        run_status: str = "all",
+        limit: int = 50,
+    ):
         if not settings.control_plane_enabled:
             return JSONResponse({"ok": False, "error": "control-plane disabled"}, status_code=404)
 
+        safe_window = _safe_window(window)
         safe_limit = max(1, min(limit, 200))
+        safe_status = str(run_status or "all").strip().lower() or "all"
+
         try:
-            runs = _sort_recent(await app.state.runner.get_runs())
-            public_runs = [_sanitize_run(r) for r in runs[:safe_limit]]
-            return {"ok": True, "count": len(runs), "runs": public_runs}
+            runs = await app.state.runner.get_runs()
+            filtered = _filter_runs(runs, window=safe_window, status=safe_status)
+            public_runs = [_sanitize_run(item) for item in filtered[:safe_limit]]
+            return {
+                "ok": True,
+                "window": safe_window,
+                "run_status": safe_status,
+                "count": len(filtered),
+                "runs": public_runs,
+            }
         except Exception:
             return JSONResponse({"ok": False, "error": "runner unavailable"}, status_code=502)
 
     @app.get("/api/control-plane/summary")
-    async def control_plane_summary():
+    async def control_plane_summary(window: str = DEFAULT_WINDOW):
         if not settings.control_plane_enabled:
             return JSONResponse({"ok": False, "error": "control-plane disabled"}, status_code=404)
 
+        safe_window = _safe_window(window)
+
         try:
-            health, tasks, decisions, runs = await asyncio.gather(
+            health, tasks, decisions, runs, queue_depth = await asyncio.gather(
                 app.state.runner.get_health(),
                 app.state.runner.get_tasks(),
                 app.state.runner.get_decisions(),
                 app.state.runner.get_runs(),
+                _queue_depth_value(),
             )
-            return _summary_payload(health=health, tasks=tasks, decisions=decisions, runs=runs)
+
+            filtered_tasks = _filter_tasks(tasks, window=safe_window, status="all")
+            filtered_decisions = _filter_decisions(decisions, window=safe_window, decision_type="all")
+            filtered_runs = _filter_runs(runs, window=safe_window, status="all")
+
+            return _summary_payload(
+                window=safe_window,
+                health=health,
+                tasks=filtered_tasks,
+                decisions=filtered_decisions,
+                runs=filtered_runs,
+                queue_depth=queue_depth,
+            )
         except Exception:
             return JSONResponse({"ok": False, "error": "runner unavailable"}, status_code=502)
 
