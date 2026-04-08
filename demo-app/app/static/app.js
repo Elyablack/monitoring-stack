@@ -1,8 +1,13 @@
 (function () {
   const THEME_KEY = "demoapp_theme";
   const themes = ["terminal", "light"];
+
   const ALERTS_AUTO_INTERVAL_MS = 30000;
   const LOGS_AUTO_INTERVAL_MS = 30000;
+
+  const FAST_ALERT_WAIT_MS = 30000;
+  const FAST_ALERT_WAIT_STEP_MS = 2000;
+
   const LONG_DEMO_WATCH_MS = 90000;
   const LONG_DEMO_WATCH_STEP_MS = 3000;
 
@@ -18,7 +23,10 @@
     longAlertNames: [],
   };
 
-  function $(sel) { return document.querySelector(sel); }
+  function $(sel) {
+    return document.querySelector(sel);
+  }
+
   function el(tag, cls, text) {
     const n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -141,11 +149,15 @@
   async function hit(path, opts = {}) {
     const method = opts.method || "GET";
     const silent = opts.silent === true;
+
     if (!silent) appendEvent(`REQUEST ${method} ${path}`);
+
     try {
       const r = await fetch(path, { method, cache: "no-store" });
       const txt = await r.text();
+
       if (!silent) appendEvent(`RESPONSE ${r.status} ${txt.trim().slice(0, 250)}`);
+
       return {
         ok: r.ok,
         status: r.status,
@@ -158,17 +170,22 @@
     }
   }
 
-  function fetchJson(path) {
-    return fetch(path, { cache: "no-store" })
-      .then(async (r) => {
-        const txt = await r.text();
-        try {
-          return { ok: r.ok, status: r.status, json: JSON.parse(txt) };
-        } catch {
-          return { ok: false, status: r.status, json: { ok: false, error: "bad json", raw: txt.slice(0, 500) } };
-        }
-      })
-      .catch(() => ({ ok: false, status: 0, json: { ok: false, error: "network error" } }));
+  async function fetchJson(path) {
+    try {
+      const r = await fetch(path, { cache: "no-store" });
+      const txt = await r.text();
+      try {
+        return { ok: r.ok, status: r.status, json: JSON.parse(txt) };
+      } catch {
+        return {
+          ok: false,
+          status: r.status,
+          json: { ok: false, error: "bad json", raw: txt.slice(0, 500) },
+        };
+      }
+    } catch {
+      return { ok: false, status: 0, json: { ok: false, error: "network error" } };
+    }
   }
 
   function ensurePowerlineAndTheme() {
@@ -274,11 +291,44 @@
     return { fastMatch, longMatch, payload: r.json };
   }
 
+  async function waitForFastAlert() {
+    const started = Date.now();
+
+    while (!scenarioState.stopRequested && Date.now() - started < FAST_ALERT_WAIT_MS) {
+      const alertCheck = await checkScenarioAlerts();
+
+      if (alertCheck?.fastMatch) {
+        scenarioState.alertState = `detected-fast:${alertCheck.fastMatch.alertname}`;
+        renderScenarioStats();
+        updateScenarioStatus(
+          "info",
+          `Fast demo alert detected: ${alertCheck.fastMatch.alertname}`,
+          "Traffic reached Alertmanager. Now waiting for the longer demo rule window."
+        );
+        appendEvent(`SCENARIO fast demo alert detected -> ${alertCheck.fastMatch.alertname}`);
+        return true;
+      }
+
+      scenarioState.alertState = "waiting";
+      renderScenarioStats();
+      updateScenarioStatus(
+        "info",
+        "Scenario finished. Waiting for the fast demo alert to appear.",
+        "Prometheus and Alertmanager may need a few extra evaluation seconds before the alert becomes visible."
+      );
+
+      await sleep(FAST_ALERT_WAIT_STEP_MS);
+    }
+
+    return false;
+  }
+
   async function watchLongDemoWindow() {
     const started = Date.now();
 
     while (!scenarioState.stopRequested && Date.now() - started < LONG_DEMO_WATCH_MS) {
       const alertCheck = await checkScenarioAlerts();
+
       if (alertCheck?.longMatch) {
         scenarioState.alertState = `detected-long:${alertCheck.longMatch.alertname}`;
         renderScenarioStats();
@@ -287,7 +337,7 @@
           `Longer demo alert detected: ${alertCheck.longMatch.alertname}`,
           "The scenario reached the longer demo rule window, not only the instant button alert."
         );
-        appendEvent(`SCENARIO long demo alert detected -> ${alertCheck.longMatch.alertname}`);
+        appendEvent(`SCENARIO longer demo alert detected -> ${alertCheck.longMatch.alertname}`);
         return;
       }
 
@@ -298,6 +348,7 @@
         "Fast demo alert detected. Waiting for the longer demo alert window.",
         "The traffic worked. Prometheus still needs more evaluation time for the longer demo rule."
       );
+
       await sleep(LONG_DEMO_WATCH_STEP_MS);
     }
 
@@ -362,6 +413,7 @@
           scenarioState.sent += 1;
           if (r.status === 503) scenarioState.errors += 1;
           appendEvent(`SCENARIO 503 #${scenarioState.errors} -> ${r.status}`);
+
           if (r.status === 429) {
             scenarioState.alertState = "cooldown";
             renderScenarioStats();
@@ -379,6 +431,7 @@
           scenarioState.sent += 1;
           if (r.status === 200) scenarioState.slow += 1;
           appendEvent(`SCENARIO slow #${scenarioState.slow} -> ${r.status} (${slowMs}ms)`);
+
           if (r.status === 429) {
             scenarioState.alertState = "cooldown";
             renderScenarioStats();
@@ -393,42 +446,23 @@
 
         renderScenarioStats();
 
-        if (i % 3 === 0 || i === burstCount - 1) {
-          const alertCheck = await checkScenarioAlerts();
-          if (alertCheck?.fastMatch) {
-            scenarioState.alertState = `detected-fast:${alertCheck.fastMatch.alertname}`;
-            renderScenarioStats();
-            updateScenarioStatus(
-              "info",
-              `Fast demo alert detected: ${alertCheck.fastMatch.alertname}`,
-              "Traffic reached Alertmanager. Now waiting for the longer demo rule window."
-            );
-          }
-        }
-
         if (i < burstCount - 1) {
           await sleep(intervalMs);
         }
       }
 
       if (!scenarioState.stopRequested) {
-        const finalAlertCheck = await checkScenarioAlerts();
-        if (finalAlertCheck?.fastMatch) {
-          scenarioState.alertState = `detected-fast:${finalAlertCheck.fastMatch.alertname}`;
-          renderScenarioStats();
-          updateScenarioStatus(
-            "info",
-            `Fast demo alert detected: ${finalAlertCheck.fastMatch.alertname}`,
-            "The instant demo rule fired. Waiting for the longer demo alert now."
-          );
+        const fastFound = await waitForFastAlert();
+
+        if (fastFound) {
           await watchLongDemoWindow();
         } else {
-          scenarioState.alertState = "waiting";
+          scenarioState.alertState = "timeout";
           renderScenarioStats();
           updateScenarioStatus(
             "warning",
-            "Scenario finished, but even the fast demo alert is not visible yet.",
-            "Refresh alerts and check Prometheus evaluation timing."
+            "Scenario finished, but the fast demo alert did not appear in time.",
+            "Refresh alerts and check Prometheus evaluation timing or make the scenario burst stronger."
           );
         }
       }
@@ -512,15 +546,14 @@
         flashBtn(btnCopy);
         const ms = msInput ? Number(msInput.value || "1200") : 1200;
         const safe = Number.isFinite(ms) ? Math.max(0, Math.min(ms, 30000)) : 1200;
-        const script =
-          [
-            curlFor("/healthz"),
-            curlFor("/metrics"),
-            curlFor(`/slow?ms=${safe}`),
-            curlFor("/error?code=503"),
-            curlFor("/_obs/alerts"),
-            curlFor("/_obs/logs?mode=buttons&limit=20"),
-          ].join("\n") + "\n";
+        const script = [
+          curlFor("/healthz"),
+          curlFor("/metrics"),
+          curlFor(`/slow?ms=${safe}`),
+          curlFor("/error?code=503"),
+          curlFor("/_obs/alerts"),
+          curlFor("/_obs/logs?mode=buttons&limit=20"),
+        ].join("\n") + "\n";
         await navigator.clipboard.writeText(script);
         toast("copied curl script");
       });
@@ -545,6 +578,7 @@
 
   function fmtAlerts(payload) {
     if (!payload || !payload.ok) return `error: ${payload?.error || "unknown"}`;
+
     const alerts = payload.alerts || [];
     const active = alerts.filter((a) => a.status === "active").length;
     const suppressed = alerts.filter((a) => a.status === "suppressed").length;
@@ -552,6 +586,7 @@
 
     const summaryCount = $("#alerts-summary-count");
     const summarySub = $("#alerts-summary-sub");
+
     if (summaryCount) summaryCount.textContent = String(alerts.length);
     if (summarySub) summarySub.textContent = `active=${active} suppressed=${suppressed} unprocessed=${unprocessed}`;
 
@@ -598,11 +633,13 @@
 
   function fmtLogs(payload) {
     if (!payload || !payload.ok) return `error: ${payload?.error || "unknown"}`;
+
     const entries = payload.entries || [];
     const byEvent = payload.summary?.by_event ? JSON.stringify(payload.summary.by_event) : "{}";
 
     const summaryCount = $("#logs-summary-count");
     const summarySub = $("#logs-summary-sub");
+
     if (summaryCount) summaryCount.textContent = String(payload.count ?? entries.length);
     if (summarySub) summarySub.textContent = `events=${byEvent}`;
 
@@ -703,6 +740,7 @@
 
     refreshAlerts();
     refreshLogs();
+
     if (alertsAuto) tAlerts = setInterval(refreshAlerts, ALERTS_AUTO_INTERVAL_MS);
     if (logsAuto) tLogs = setInterval(refreshLogs, LOGS_AUTO_INTERVAL_MS);
   }
@@ -718,13 +756,14 @@
     wireQuickActions();
     wireObs();
     renderScenarioStats();
+
     updateScenarioStatus(
       "idle",
       "Pick a scenario to generate alert-friendly traffic.",
       "Fast demo alerts should appear first. Longer demo alerts need a wider Prometheus window."
     );
-    await refreshStatusLoop();
 
+    await refreshStatusLoop();
     appendEvent("ready");
   });
 })();
