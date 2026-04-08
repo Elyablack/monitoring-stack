@@ -52,6 +52,16 @@ def create_app() -> FastAPI:
     metrics = Metrics(service=settings.app_name)
     limiter = SlidingWindowRateLimiter(limit=settings.rate_limit, window_s=settings.rate_window_s)
 
+    grafana_base = (settings.grafana_public_url or "").rstrip("/")
+
+    grafana_urls = {
+        "control_plane": f"{grafana_base}/d/control-plane-overview" if grafana_base else "#",
+        "demo_app": f"{grafana_base}/d/demo-app-observability" if grafana_base else "#",
+        "mac": f"{grafana_base}/d/mac-dashboard" if grafana_base else "#",
+        "application_alerts": f"{grafana_base}/d/application-alerts" if grafana_base else "#",
+        "host_alerts": f"{grafana_base}/d/host-alerts" if grafana_base else "#",
+    }
+
     def _now_utc() -> datetime:
         return datetime.now(timezone.utc)
 
@@ -440,6 +450,7 @@ def create_app() -> FastAPI:
                 {"name": "obs_alerts", "method": "GET", "path": "/_obs/alerts", "descr": "Alertmanager API (read)"},
                 {"name": "obs_logs", "method": "GET", "path": "/_obs/logs?mode=buttons&limit=20", "descr": "Loki logs (filtered)"},
                 {"name": "control_plane", "method": "GET", "path": "/control-plane", "descr": "action-runner read-only UI"},
+                {"name": "dashboards", "method": "GET", "path": "/dashboards", "descr": "dashboard preview surface"},
             ],
         }
         return templates.TemplateResponse("index.html", ctx)
@@ -456,6 +467,17 @@ def create_app() -> FastAPI:
             "page_title": f"{settings.app_name} / control-plane",
         }
         return templates.TemplateResponse("control_plane.html", ctx)
+
+    @app.get("/dashboards", response_class=HTMLResponse)
+    async def dashboards(request: Request):
+        ctx = {
+            "request": request,
+            "app_name": settings.app_name,
+            "env": settings.env,
+            "page_title": f"{settings.app_name} / dashboards",
+            "grafana_urls": grafana_urls,
+        }
+        return templates.TemplateResponse("dashboards.html", ctx)
 
     @app.get("/healthz", response_class=PlainTextResponse)
     async def healthz():

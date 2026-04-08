@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en" data-app="{{ app_name }}" data-env="{{ env }}" data-theme="terminal">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ page_title }}</title>
+  <link rel="stylesheet" href="/static/app.css?v=20260408-1" />
+  <script defer src="/static/app.js?v=20260408-1"></script>
+  <style>
+    .db-topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: nowrap;
+    }
+
+    .db-topbar-right {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      flex-wrap: nowrap;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .db-subtitle {
+      white-space: nowrap;
+    }
+
+    .db-link-btn {
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+
+    .db-intro {
+      margin-top: 18px;
+    }
+
+    .db-intro-text {
+      max-width: 960px;
+      color: var(--muted);
+      font-size: 0.98rem;
+      line-height: 1.45;
+      font-family: var(--mono);
+    }
+
+    .db-section {
+      margin-top: 22px;
+    }
+
+    .db-section-title {
+      font-family: var(--mono);
+      font-size: 1.4rem;
+      font-weight: 900;
+      margin: 0 0 14px 0;
+      letter-spacing: 0.02em;
+    }
+
+    .db-grid-featured {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      align-items: start;
+    }
+
+    .db-grid-secondary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      align-items: start;
+    }
+
+    .db-card {
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .db-card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .db-card-title-wrap {
+      min-width: 0;
+    }
+
+    .db-card-title {
+      font-family: var(--mono);
+      font-size: 1.12rem;
+      font-weight: 900;
+      margin: 0 0 8px 0;
+      line-height: 1.25;
+    }
+
+    .db-card-subtitle {
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.4;
+      font-family: var(--mono);
+    }
+
+    .db-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 14px 0;
+    }
+
+    .db-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .db-badge.featured {
+      border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+      background: color-mix(in srgb, var(--primary) 10%, var(--panel));
+    }
+
+    .db-badge.metrics {
+      border-color: color-mix(in srgb, var(--ok) 35%, var(--border));
+      background: color-mix(in srgb, var(--ok) 10%, var(--panel));
+    }
+
+    .db-badge.alerts {
+      border-color: color-mix(in srgb, var(--warn) 40%, var(--border));
+      background: color-mix(in srgb, var(--warn) 10%, var(--panel));
+    }
+
+    .db-badge.infra {
+      border-color: color-mix(in srgb, #4c8bf5 40%, var(--border));
+      background: color-mix(in srgb, #4c8bf5 10%, var(--panel));
+    }
+
+    .db-preview-wrap {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      background: color-mix(in srgb, var(--panel) 94%, transparent);
+      margin-bottom: 14px;
+    }
+
+    .db-preview {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .db-desc {
+      font-family: var(--mono);
+      font-size: 0.95rem;
+      line-height: 1.45;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+
+    .db-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .db-actions .btn,
+    .db-actions .link {
+      text-decoration: none;
+    }
+
+    .db-note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 1280px) {
+      .db-topbar {
+        flex-wrap: wrap;
+      }
+
+      .db-topbar-right {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        white-space: normal;
+      }
+
+      .db-subtitle {
+        white-space: normal;
+      }
+
+      .db-grid-featured {
+        grid-template-columns: 1fr;
+      }
+
+      .db-grid-secondary {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="container">
+    <div class="topbar db-topbar">
+      <div class="brand">
+        <div
+          class="title"
+          id="app-name"
+          style="font-family: var(--mono); font-weight: 900; letter-spacing: 0.6px;"
+        >
+          {{ page_title }}
+        </div>
+
+        <div class="subtitle db-subtitle">
+          curated metrics, alerts and agent surfaces
+        </div>
+      </div>
+
+      <div class="db-topbar-right">
+        <a class="btn primary db-link-btn" href="/" title="Back to demo app">back to demo</a>
+
+        <div class="powerline" id="powerline">
+          <div class="seg" id="pl-seg-app">
+            <span class="k">app</span><span class="v" id="pl-app">{{ app_name }}</span>
+          </div>
+          <div class="seg" id="pl-seg-env">
+            <span class="k">env</span><span class="v" id="pl-env">{{ env }}</span>
+          </div>
+          <div class="seg" id="pl-seg-status">
+            <span class="dot" id="pl-dot"></span>
+            <span class="k">status</span><span class="v" id="pl-status">?</span>
+          </div>
+          <div class="seg" id="pl-seg-time">
+            <span class="k">time</span><span class="v" id="pl-time">--:--:--</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="db-intro">
+      <div class="db-intro-text">
+        Public-safe dashboard index for the monitoring stack. These previews show the main
+        observability surfaces for the demo app, control-plane pipeline, mac agent, application
+        alerting and host alerting. Grafana itself stays private.
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="db-section">
+      <h2 class="db-section-title">Featured dashboards</h2>
+
+      <div class="db-grid-featured">
+        <article class="card db-card">
+          <div class="db-card-head">
+            <div class="db-card-title-wrap">
+              <h3 class="db-card-title">Control Plane Overview</h3>
+              <div class="db-card-subtitle">Pipeline health, queue depth, decisions, tasks and runs.</div>
+            </div>
+          </div>
+
+          <div class="db-badges">
+            <span class="db-badge featured">featured</span>
+            <span class="db-badge metrics">orchestration</span>
+          </div>
+
+          <div class="db-preview-wrap">
+            <img
+              class="db-preview"
+              src="/static/dashboards/01-control-plane-overview.png"
+              alt="Control Plane Overview dashboard preview"
+            />
+          </div>
+
+          <div class="db-desc">
+            Best starting point to understand how alerts move through the control-plane:
+            decisions, queued work, action runs and mac remediation outcomes.
+          </div>
+
+          <div class="db-actions">
+            <a class="btn primary" href="{{ grafana_urls.control_plane }}" target="_blank" rel="noopener noreferrer">open in Grafana</a>
+          </div>
+        </article>
+
+        <article class="card db-card">
+          <div class="db-card-head">
+            <div class="db-card-title-wrap">
+              <h3 class="db-card-title">Demo App Observability</h3>
+              <div class="db-card-subtitle">Backup, traffic, errors, routes, latency and inflight behavior.</div>
+            </div>
+          </div>
+
+          <div class="db-badges">
+            <span class="db-badge featured">featured</span>
+            <span class="db-badge metrics">application</span>
+          </div>
+
+          <div class="db-preview-wrap">
+            <img
+              class="db-preview"
+              src="/static/dashboards/02-demo-app-observability.png"
+              alt="Demo App Observability dashboard preview"
+            />
+          </div>
+
+          <div class="db-desc">
+            Use together with the main demo page. This dashboard shows how manual traffic generation
+            changes request rate, error distribution, p95 latency and service health.
+          </div>
+
+          <div class="db-actions">
+            <a class="btn primary" href="{{ grafana_urls.demo_app }}" target="_blank" rel="noopener noreferrer">open in Grafana</a>
+          </div>
+        </article>
+
+        <article class="card db-card">
+          <div class="db-card-head">
+            <div class="db-card-title-wrap">
+              <h3 class="db-card-title">Mac Agent</h3>
+              <div class="db-card-subtitle">Memory status, top processes, swap, freshness and uptime.</div>
+            </div>
+          </div>
+
+          <div class="db-badges">
+            <span class="db-badge featured">featured</span>
+            <span class="db-badge infra">remote agent</span>
+          </div>
+
+          <div class="db-preview-wrap">
+            <img
+              class="db-preview"
+              src="/static/dashboards/03-mac-dashboard.png"
+              alt="Mac agent dashboard preview"
+            />
+          </div>
+
+          <div class="db-desc">
+            Remote mac observability surface for memory pressure work. Shows host state, top memory
+            consumers, publishing freshness and operational readiness of the agent loop.
+          </div>
+
+          <div class="db-actions">
+            <a class="btn primary" href="{{ grafana_urls.mac }}" target="_blank" rel="noopener noreferrer">open in Grafana</a>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="db-section">
+      <h2 class="db-section-title">Alerts and infrastructure</h2>
+
+      <div class="db-grid-secondary">
+        <article class="card db-card">
+          <div class="db-card-head">
+            <div class="db-card-title-wrap">
+              <h3 class="db-card-title">Application Alerts</h3>
+              <div class="db-card-subtitle">Demo-app health, 5xx, p95 latency and inflight requests.</div>
+            </div>
+          </div>
+
+          <div class="db-badges">
+            <span class="db-badge alerts">alerts</span>
+            <span class="db-badge metrics">app SLOs</span>
+          </div>
+
+          <div class="db-preview-wrap">
+            <img
+              class="db-preview"
+              src="/static/dashboards/04-application-alerts.png"
+              alt="Application alerts dashboard preview"
+            />
+          </div>
+
+          <div class="db-desc">
+            Focused alert-oriented view for the demo app. Useful when validating alert thresholds
+            or checking whether traffic spikes translate into warning conditions.
+          </div>
+
+          <div class="db-actions">
+            <a class="btn primary" href="{{ grafana_urls.application_alerts }}" target="_blank" rel="noopener noreferrer">open in Grafana</a>
+          </div>
+        </article>
+
+        <article class="card db-card">
+          <div class="db-card-head">
+            <div class="db-card-title-wrap">
+              <h3 class="db-card-title">Host Alerts</h3>
+              <div class="db-card-subtitle">Node exporter health, reboot age, root filesystem, CPU and memory.</div>
+            </div>
+          </div>
+
+          <div class="db-badges">
+            <span class="db-badge alerts">alerts</span>
+            <span class="db-badge infra">infrastructure</span>
+          </div>
+
+          <div class="db-preview-wrap">
+            <img
+              class="db-preview"
+              src="/static/dashboards/05-host-alerts.png"
+              alt="Host alerts dashboard preview"
+            />
+          </div>
+
+          <div class="db-desc">
+            Infrastructure-focused dashboard for the admin and vps nodes. Good for reboot detection,
+            disk pressure checks and quick host-level health validation.
+          </div>
+
+          <div class="db-actions">
+            <a class="btn primary" href="{{ grafana_urls.host_alerts }}" target="_blank" rel="noopener noreferrer">open in Grafana</a>
+          </div>
+        </article>
+      </div>
+
+      <div class="db-note">
+        Screenshots are public-safe previews. Live Grafana views remain private and open in a separate tab.
+      </div>
+    </section>
+  </main>
+</body>
+</html>
