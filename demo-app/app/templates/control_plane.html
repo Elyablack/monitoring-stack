@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ page_title }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260405-2" />
-  <script defer src="/static/control_plane.js?v=20260405-1"></script>
+  <link rel="stylesheet" href="/static/app.css?v=20260408-1" />
+  <script defer src="/static/control_plane.js?v=20260408-1"></script>
   <style>
     .cp-topbar {
       display: flex;
@@ -55,7 +55,7 @@
       align-items: center;
       gap: 10px;
       flex-wrap: wrap;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
 
     .cp-badge {
@@ -81,18 +81,13 @@
       box-shadow: 0 0 12px rgba(46, 204, 113, 0.45);
     }
 
-    .cp-pre-summary {
-      min-height: 220px;
-      overflow: auto;
-    }
-
     .cp-controls {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
       flex-wrap: wrap;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
     }
 
     .cp-control-group {
@@ -197,6 +192,155 @@
       font-size: 0.95rem;
     }
 
+    .cp-status-shell {
+      border: 1px solid rgba(120, 120, 120, 0.22);
+      border-radius: 18px;
+      padding: 18px;
+      background: rgba(255, 255, 255, 0.015);
+    }
+
+    .cp-status-hero {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 14px;
+      align-items: start;
+      margin-bottom: 14px;
+    }
+
+    .cp-status-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 108px;
+      padding: 10px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(120, 120, 120, 0.25);
+      background: rgba(255, 255, 255, 0.02);
+      font-family: var(--mono);
+      font-weight: 800;
+      letter-spacing: 0.4px;
+    }
+
+    .cp-status-pill.ok {
+      border-color: rgba(70, 200, 120, 0.35);
+      background: rgba(20, 120, 60, 0.14);
+    }
+
+    .cp-status-pill.info {
+      border-color: rgba(120, 160, 255, 0.32);
+      background: rgba(70, 90, 180, 0.12);
+    }
+
+    .cp-status-pill.warning {
+      border-color: rgba(255, 185, 60, 0.34);
+      background: rgba(140, 90, 10, 0.14);
+    }
+
+    .cp-status-pill.idle {
+      border-color: rgba(120, 120, 120, 0.25);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .cp-status-copy {
+      min-width: 0;
+    }
+
+    .cp-status-message {
+      font-family: var(--mono);
+      font-size: 1.02rem;
+      line-height: 1.45;
+      margin-bottom: 8px;
+    }
+
+    .cp-status-sub {
+      opacity: 0.82;
+      font-size: 0.95rem;
+    }
+
+    .cp-summary-stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .cp-stat-card {
+      border: 1px solid rgba(120, 120, 120, 0.22);
+      border-radius: 14px;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.02);
+      min-width: 0;
+    }
+
+    .cp-stat-k {
+      font-family: var(--mono);
+      opacity: 0.75;
+      font-size: 0.88rem;
+      margin-bottom: 8px;
+    }
+
+    .cp-stat-v {
+      font-family: var(--mono);
+      font-size: 1.4rem;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .cp-summary-meta {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .cp-meta-card {
+      border: 1px solid rgba(120, 120, 120, 0.22);
+      border-radius: 14px;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.02);
+      min-width: 0;
+    }
+
+    .cp-meta-title {
+      font-family: var(--mono);
+      opacity: 0.75;
+      font-size: 0.88rem;
+      margin-bottom: 8px;
+    }
+
+    .cp-meta-line {
+      font-family: var(--mono);
+      line-height: 1.45;
+      word-break: break-word;
+    }
+
+    .cp-summary-last {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .cp-last-card {
+      border: 1px solid rgba(120, 120, 120, 0.22);
+      border-radius: 14px;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.02);
+      min-width: 0;
+    }
+
+    .cp-last-title {
+      font-family: var(--mono);
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+
+    .cp-last-body {
+      font-family: var(--mono);
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
     @media (max-width: 1240px) {
       .cp-topbar {
         flex-wrap: wrap;
@@ -215,7 +359,14 @@
 
       .cp-grid-3,
       .cp-grid-2,
-      .cp-links {
+      .cp-links,
+      .cp-summary-stats,
+      .cp-summary-meta,
+      .cp-summary-last {
+        grid-template-columns: 1fr;
+      }
+
+      .cp-status-hero {
         grid-template-columns: 1fr;
       }
 
@@ -230,14 +381,9 @@
   <header class="container">
     <div class="topbar cp-topbar">
       <div class="brand">
-        <div
-          class="title"
-          id="app-name"
-          style="font-family: var(--mono); font-weight: 900; letter-spacing: 0.6px;"
-        >
+        <div class="title" id="app-name" style="font-family: var(--mono); font-weight: 900; letter-spacing: 0.6px;">
           {{ page_title }}
         </div>
-
         <div class="subtitle cp-subtitle">
           signals → decisions → tasks → executions
         </div>
@@ -292,7 +438,19 @@
         </div>
       </div>
 
-      <pre id="summary-out" class="pre pre-client cp-pre-summary">(loading)</pre>
+      <div id="summary-out" class="cp-status-shell">
+        <div class="cp-status-hero">
+          <div id="summary-level" class="cp-status-pill idle">IDLE</div>
+          <div class="cp-status-copy">
+            <div id="summary-message" class="cp-status-message">(loading)</div>
+            <div id="summary-sub" class="cp-status-sub"></div>
+          </div>
+        </div>
+
+        <div id="summary-stats" class="cp-summary-stats"></div>
+        <div id="summary-meta" class="cp-summary-meta"></div>
+        <div id="summary-last" class="cp-summary-last"></div>
+      </div>
     </div>
 
     <section class="cp-grid-3">
@@ -320,6 +478,7 @@
             <option value="success">success</option>
             <option value="failed">failed</option>
             <option value="running">running</option>
+            <option value="skipped">skipped</option>
           </select>
         </div>
         <pre id="tasks-out" class="pre pre-logs cp-grid-pre">(loading)</pre>
@@ -335,6 +494,7 @@
             <option value="failed">failed</option>
             <option value="running">running</option>
             <option value="skipped">skipped</option>
+            <option value="blocked">blocked</option>
           </select>
         </div>
         <pre id="runs-out" class="pre pre-logs cp-grid-pre">(loading)</pre>

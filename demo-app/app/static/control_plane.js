@@ -1,20 +1,15 @@
 (function () {
   const THEME_KEY = "demoapp_theme";
   const themes = ["terminal", "light"];
-  const AUTO_INTERVAL_MS = 15000;
   const DEFAULT_WINDOW = "24h";
-  const DEFAULT_LIMIT = 20;
+  const AUTO_INTERVAL_MS = 30000;
 
-  const state = {
-    window: DEFAULT_WINDOW,
-    decisionType: "all",
-    taskStatus: "all",
-    runStatus: "all",
-    auto: true,
-    timer: null,
-  };
+  let currentWindow = DEFAULT_WINDOW;
+  let autoEnabled = true;
+  let autoTimer = null;
 
   function $(sel) { return document.querySelector(sel); }
+  function $all(sel) { return Array.from(document.querySelectorAll(sel)); }
 
   function el(tag, cls, text) {
     const n = document.createElement(tag);
@@ -75,7 +70,29 @@
       pl = el("div", "powerline");
       top.appendChild(pl);
     }
+
+    function seg(id, innerHtml) {
+      const s = el("div", "seg");
+      s.id = id;
+      s.innerHTML = innerHtml;
+      return s;
+    }
+
+    if (!$("#pl-seg-app")) {
+      pl.appendChild(seg("pl-seg-app", `<span class="k">app</span><span class="v" id="pl-app">demo-app</span>`));
+      pl.appendChild(seg("pl-seg-env", `<span class="k">env</span><span class="v" id="pl-env">prod</span>`));
+      pl.appendChild(seg("pl-seg-status", `<span class="dot" id="pl-dot"></span><span class="k">runner</span><span class="v" id="pl-status">?</span>`));
+      pl.appendChild(seg("pl-seg-time", `<span class="k">time</span><span class="v" id="pl-time">--:--:--</span>`));
+    }
+
     if (!$("#pl-theme-btn")) ensureThemeButton(pl);
+  }
+
+  function initFromDom() {
+    const appName = document.documentElement.getAttribute("data-app") || $("#app-name")?.textContent || null;
+    const env = document.documentElement.getAttribute("data-env") || null;
+    if (appName && $("#pl-app")) $("#pl-app").textContent = appName;
+    if (env && $("#pl-env")) $("#pl-env").textContent = env;
   }
 
   function setTime() {
@@ -88,7 +105,17 @@
     n.textContent = `${hh}:${mm}:${ss}`;
   }
 
-  function setRunnerStatus(ok, text) {
+  async function fetchJson(path) {
+    const r = await fetch(path, { cache: "no-store" });
+    const txt = await r.text();
+    try {
+      return { ok: r.ok, status: r.status, json: JSON.parse(txt) };
+    } catch {
+      return { ok: false, status: r.status, json: { ok: false, error: "bad json", raw: txt.slice(0, 500) } };
+    }
+  }
+
+  function setRunnerStatus(levelText, ok) {
     const dot = $("#pl-dot");
     const v = $("#pl-status");
     const seg = $("#pl-seg-status");
@@ -100,11 +127,362 @@
     if (ok) {
       dot.classList.add("ok");
       seg.classList.add("ok");
-      v.textContent = String(text || "ONLINE").toUpperCase();
     } else {
       dot.classList.add("bad");
       seg.classList.add("bad");
-      v.textContent = String(text || "OFFLINE").toUpperCase();
+    }
+    v.textContent = levelText;
+  }
+
+  function humanAgeFromSeconds(value) {
+    if (value === null || value === undefined || !Number.isFinite(Number(value))) return "unknown";
+    const s = Math.max(0, Math.floor(Number(value)));
+    if (s < 60) return `${s}s ago`;
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return `${Math.floor(s / 86400)}d ago`;
+  }
+
+  function setWindowButtons() {
+    $all(".btn-window").forEach((btn) => {
+      btn.classList.toggle("primary", btn.dataset.window === currentWindow);
+    });
+  }
+
+  function summarizeCounts(obj) {
+    const entries = Object.entries(obj || {});
+    if (!entries.length) return "none";
+    return entries
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([k, v]) => `${k}=${v}`)
+      .join("  ");
+  }
+
+  function friendlyStatus(summary) {
+    const human = summary?.human_status || {};
+    const totals = summary?.totals || {};
+    const failures = Number(totals.failures || 0);
+    const lastAge = human.last_activity_age_s;
+    const hasRecentSuccess =
+      (summary?.last_task && summary.last_task.status === "success") ||
+      (summary?.last_run && summary.last_run.status === "success");
+
+    if (!summary?.runner || summary.runner.status !== "ok") {
+      return {
+        level: "warning",
+        label: "WARNING",
+        message: "Runner is not healthy.",
+        sub: "Check runner health and service logs.",
+        powerlineOk: false,
+      };
+    }
+
+    if (!totals.tasks && !totals.decisions && !totals.runs) {
+      return {
+        level: "idle",
+        label: "IDLE",
+        message: "Runner is healthy, but no recent pipeline activity was detected.",
+        sub: `Window: ${summary.window}. Queue: ${summary?.queue?.state || "unknown"}.`,
+        powerlineOk: true,
+      };
+    }
+
+    if (failures === 0) {
+      return {
+        level: "ok",
+        label: "OK",
+        message: "Recent pipeline activity looks healthy.",
+        sub: `Last activity: ${humanAgeFromSeconds(lastAge)}. Queue: ${summary?.queue?.state || "unknown"}.`,
+        powerlineOk: true,
+      };
+    }
+
+    const olderFailure = Number.isFinite(Number(lastAge)) && Number(lastAge) > 1800;
+    if (olderFailure && hasRecentSuccess) {
+      return {
+        level: "info",
+        label: "INFO",
+        message: `Recent activity is healthy. ${failures} older failure(s) remain in the selected ${summary.window} window.`,
+        sub: `Latest successful activity: ${humanAgeFromSeconds(lastAge)}. Queue: ${summary?.queue?.state || "unknown"}.`,
+        powerlineOk: true,
+      };
+    }
+
+    return {
+      level: "warning",
+      label: "WARNING",
+      message: `Recent activity detected with ${failures} failure(s) in the pipeline.`,
+      sub: `Last activity: ${humanAgeFromSeconds(lastAge)}. Queue: ${summary?.queue?.state || "unknown"}.`,
+      powerlineOk: true,
+    };
+  }
+
+  function statCard(label, value) {
+    const card = el("div", "cp-stat-card");
+    card.appendChild(el("div", "cp-stat-k", label));
+    card.appendChild(el("div", "cp-stat-v", String(value)));
+    return card;
+  }
+
+  function metaCard(title, lines) {
+    const card = el("div", "cp-meta-card");
+    card.appendChild(el("div", "cp-meta-title", title));
+    lines.forEach((line) => card.appendChild(el("div", "cp-meta-line", line)));
+    return card;
+  }
+
+  function lastCard(title, lines) {
+    const card = el("div", "cp-last-card");
+    card.appendChild(el("div", "cp-last-title", title));
+    const body = el("div", "cp-last-body", lines.join("\n"));
+    card.appendChild(body);
+    return card;
+  }
+
+  function renderSummary(summary) {
+    const levelEl = $("#summary-level");
+    const messageEl = $("#summary-message");
+    const subEl = $("#summary-sub");
+    const statsEl = $("#summary-stats");
+    const metaEl = $("#summary-meta");
+    const lastEl = $("#summary-last");
+
+    if (!levelEl || !messageEl || !subEl || !statsEl || !metaEl || !lastEl) return;
+
+    if (!summary || !summary.ok) {
+      levelEl.className = "cp-status-pill warning";
+      levelEl.textContent = "WARNING";
+      messageEl.textContent = summary?.error || "Failed to load summary.";
+      subEl.textContent = "Check runner API and demo-app logs.";
+      statsEl.innerHTML = "";
+      metaEl.innerHTML = "";
+      lastEl.innerHTML = "";
+      setRunnerStatus("ERR", false);
+      return;
+    }
+
+    const friendly = friendlyStatus(summary);
+    levelEl.className = `cp-status-pill ${friendly.level}`;
+    levelEl.textContent = friendly.label;
+    messageEl.textContent = friendly.message;
+    subEl.textContent = friendly.sub;
+    setRunnerStatus(summary.runner.status === "ok" ? "OK" : "ERR", friendly.powerlineOk);
+
+    statsEl.innerHTML = "";
+    statsEl.appendChild(statCard("decisions", summary?.totals?.decisions ?? 0));
+    statsEl.appendChild(statCard("tasks", summary?.totals?.tasks ?? 0));
+    statsEl.appendChild(statCard("runs", summary?.totals?.runs ?? 0));
+    statsEl.appendChild(statCard("failures", summary?.totals?.failures ?? 0));
+
+    metaEl.innerHTML = "";
+    metaEl.appendChild(
+      metaCard("runner", [
+        `service=${summary?.runner?.service || "unknown"}`,
+        `status=${summary?.runner?.status || "unknown"}`,
+        `rules_loaded=${summary?.runner?.rules_loaded ?? "unknown"}`,
+      ])
+    );
+    metaEl.appendChild(
+      metaCard("queue + window", [
+        `window=${summary.window}`,
+        `queue=${summary?.queue?.state || "unknown"}`,
+        `depth=${summary?.queue?.depth ?? "unknown"}`,
+      ])
+    );
+    metaEl.appendChild(
+      metaCard("status counts", [
+        `tasks: ${summarizeCounts(summary.task_status_counts)}`,
+        `runs: ${summarizeCounts(summary.run_status_counts)}`,
+      ])
+    );
+
+    const lastDecision = summary.last_decision
+      ? [
+          `id=${summary.last_decision.id}`,
+          `type=${summary.last_decision.decision}`,
+          `alert=${summary.last_decision.alertname || "-"}`,
+          `severity=${summary.last_decision.severity || "-"}`,
+          `when=${humanAgeFromSeconds(summary.last_decision.created_age_s)}`,
+        ]
+      : ["no recent decision"];
+
+    const lastTask = summary.last_task
+      ? [
+          `id=${summary.last_task.id}`,
+          `type=${summary.last_task.task_type}`,
+          `status=${summary.last_task.status}`,
+          `priority=${summary.last_task.priority}`,
+          `when=${humanAgeFromSeconds(summary.last_task.finished_age_s ?? summary.last_task.created_age_s)}`,
+        ]
+      : ["no recent task"];
+
+    const lastRun = summary.last_run
+      ? [
+          `id=${summary.last_run.id}`,
+          `action=${summary.last_run.action}`,
+          `status=${summary.last_run.status}`,
+          `trigger=${summary.last_run.trigger_type}`,
+          `when=${humanAgeFromSeconds(summary.last_run.finished_age_s ?? summary.last_run.started_age_s)}`,
+        ]
+      : ["no recent run"];
+
+    lastEl.innerHTML = "";
+    lastEl.appendChild(lastCard("last decision", lastDecision));
+    lastEl.appendChild(lastCard("last task", lastTask));
+    lastEl.appendChild(lastCard("last run", lastRun));
+  }
+
+  function fmtDecision(item) {
+    return [
+      `id=${item.id}  decision=${item.decision}  severity=${item.severity || "-"}  alert=${item.alertname || "-"}`,
+      `status=${item.status || "-"}  action=${item.action || "-"}  when=${humanAgeFromSeconds(item.created_age_s)}`,
+      `reason=${item.reason || "-"}`,
+      "",
+    ].join("\n");
+  }
+
+  function fmtTask(item) {
+    return [
+      `id=${item.id}  type=${item.task_type}  status=${item.status}  priority=${item.priority}`,
+      `decision_id=${item.decision_id ?? "--"}  created=${humanAgeFromSeconds(item.created_age_s)}`,
+      `started=${humanAgeFromSeconds(item.started_age_s)}  finished=${humanAgeFromSeconds(item.finished_age_s)}`,
+      item.error ? `error=${item.error}` : "error=-",
+      "",
+    ].join("\n");
+  }
+
+  function fmtRun(item) {
+    return [
+      `id=${item.id}  action=${item.action}  status=${item.status}  trigger=${item.trigger_type}`,
+      `started=${humanAgeFromSeconds(item.started_age_s)}  finished=${humanAgeFromSeconds(item.finished_age_s)}`,
+      item.error ? `error=${item.error}` : "error=-",
+      "",
+    ].join("\n");
+  }
+
+  async function refreshSummary() {
+    const r = await fetchJson(`/api/control-plane/summary?window=${encodeURIComponent(currentWindow)}`);
+    renderSummary(r.json);
+  }
+
+  async function refreshDecisions() {
+    const filter = $("#decision-filter")?.value || "all";
+    const out = $("#decisions-out");
+    if (!out) return;
+    const r = await fetchJson(`/api/control-plane/decisions?window=${encodeURIComponent(currentWindow)}&decision_type=${encodeURIComponent(filter)}&limit=50`);
+    if (!r.ok || !r.json?.ok) {
+      out.textContent = r.json?.error || "failed to load decisions";
+      return;
+    }
+    const items = r.json.decisions || [];
+    out.textContent = items.length ? items.map(fmtDecision).join("\n") : "No recent decisions in the selected window.";
+  }
+
+  async function refreshTasks() {
+    const filter = $("#task-filter")?.value || "all";
+    const out = $("#tasks-out");
+    if (!out) return;
+    const r = await fetchJson(`/api/control-plane/tasks?window=${encodeURIComponent(currentWindow)}&task_status=${encodeURIComponent(filter)}&limit=50`);
+    if (!r.ok || !r.json?.ok) {
+      out.textContent = r.json?.error || "failed to load tasks";
+      return;
+    }
+    const items = r.json.tasks || [];
+    out.textContent = items.length ? items.map(fmtTask).join("\n") : "No recent tasks in the selected window.";
+  }
+
+  async function refreshRuns() {
+    const filter = $("#run-filter")?.value || "all";
+    const out = $("#runs-out");
+    if (!out) return;
+    const r = await fetchJson(`/api/control-plane/runs?window=${encodeURIComponent(currentWindow)}&run_status=${encodeURIComponent(filter)}&limit=50`);
+    if (!r.ok || !r.json?.ok) {
+      out.textContent = r.json?.error || "failed to load runs";
+      return;
+    }
+    const items = r.json.runs || [];
+    out.textContent = items.length ? items.map(fmtRun).join("\n") : "No recent runs in the selected window.";
+  }
+
+  async function refreshOutcomes() {
+    const out = $("#outcomes-out");
+    if (!out) return;
+
+    const summaryResp = await fetchJson(`/api/control-plane/summary?window=${encodeURIComponent(currentWindow)}`);
+    const summary = summaryResp.json;
+
+    if (!summaryResp.ok || !summary?.ok) {
+      out.textContent = summary?.error || "failed to load outcomes";
+      return;
+    }
+
+    const lines = [];
+    lines.push(`window=${summary.window}`);
+    lines.push(`queue=${summary?.queue?.state || "unknown"} depth=${summary?.queue?.depth ?? "unknown"}`);
+    lines.push(`tasks=${summary?.totals?.tasks ?? 0}  decisions=${summary?.totals?.decisions ?? 0}  runs=${summary?.totals?.runs ?? 0}`);
+    lines.push(`task_status=${summarizeCounts(summary.task_status_counts)}`);
+    lines.push(`run_status=${summarizeCounts(summary.run_status_counts)}`);
+
+    if (summary.last_task) {
+      lines.push("");
+      lines.push(`last_task id=${summary.last_task.id} type=${summary.last_task.task_type} status=${summary.last_task.status}`);
+    }
+    if (summary.last_run) {
+      lines.push(`last_run  id=${summary.last_run.id} action=${summary.last_run.action} status=${summary.last_run.status}`);
+    }
+
+    out.textContent = lines.join("\n");
+  }
+
+  async function refreshAll() {
+    await Promise.all([
+      refreshSummary(),
+      refreshDecisions(),
+      refreshTasks(),
+      refreshRuns(),
+      refreshOutcomes(),
+    ]);
+  }
+
+  function wireFilters() {
+    $("#decision-filter")?.addEventListener("change", refreshDecisions);
+    $("#task-filter")?.addEventListener("change", refreshTasks);
+    $("#run-filter")?.addEventListener("change", refreshRuns);
+  }
+
+  function wireWindowButtons() {
+    $all(".btn-window").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        currentWindow = btn.dataset.window || DEFAULT_WINDOW;
+        setWindowButtons();
+        await refreshAll();
+      });
+    });
+    setWindowButtons();
+  }
+
+  function wireSummaryControls() {
+    $("#btn-refresh-all")?.addEventListener("click", async () => {
+      await refreshAll();
+      toast("refreshed");
+    });
+
+    $("#btn-auto")?.addEventListener("click", async () => {
+      autoEnabled = !autoEnabled;
+      const btn = $("#btn-auto");
+      if (btn) {
+        btn.textContent = autoEnabled ? "auto: on" : "auto: off";
+        btn.classList.toggle("primary", autoEnabled);
+      }
+      if (autoTimer) clearInterval(autoTimer);
+      autoTimer = autoEnabled ? setInterval(refreshAll, AUTO_INTERVAL_MS) : null;
+      if (autoEnabled) await refreshAll();
+    });
+
+    const btn = $("#btn-auto");
+    if (btn) {
+      btn.textContent = autoEnabled ? "auto: on" : "auto: off";
+      btn.classList.toggle("primary", autoEnabled);
     }
   }
 
@@ -115,292 +493,22 @@
     });
   }
 
-  async function fetchJson(path) {
-    const r = await fetch(path, { cache: "no-store" });
-    const txt = await r.text();
-    try {
-      return { ok: r.ok, status: r.status, json: JSON.parse(txt) };
-    } catch {
-      return { ok: false, status: r.status, json: { ok: false, error: "bad json", raw: txt.slice(0, 500) } };
-    }
-  }
-
-  function safeStr(v, fallback = "-") {
-    if (v === null || v === undefined || v === "") return fallback;
-    return String(v);
-  }
-
-  function fmtAge(seconds) {
-    if (seconds === null || seconds === undefined || Number.isNaN(Number(seconds))) return "unknown";
-    const s = Number(seconds);
-    if (s < 60) return `${Math.floor(s)}s ago`;
-    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-    return `${Math.floor(s / 86400)}d ago`;
-  }
-
-  function fmtCounts(obj) {
-    const pairs = Object.entries(obj || {});
-    if (!pairs.length) return "-";
-    return pairs.map(([k, v]) => `${k}=${v}`).join("  ");
-  }
-
-  function setWindowButtons() {
-    document.querySelectorAll(".btn-window").forEach((btn) => {
-      const isActive = btn.dataset.window === state.window;
-      btn.classList.toggle("primary", isActive);
-    });
-  }
-
-  function buildQuery(params) {
-    const usp = new URLSearchParams();
-    Object.entries(params).forEach(([k, v]) => {
-      if (v !== null && v !== undefined && String(v).length > 0) {
-        usp.set(k, String(v));
-      }
-    });
-    return usp.toString();
-  }
-
-  function fmtSummary(payload) {
-    if (!payload || !payload.ok) return `Runner unavailable.\n\nReason: ${payload?.error || "unknown"}`;
-
-    const runner = payload.runner || {};
-    const totals = payload.totals || {};
-    const human = payload.human_status || {};
-    const queue = payload.queue || {};
-    const lastTask = payload.last_task || null;
-    const lastDecision = payload.last_decision || null;
-    const lastRun = payload.last_run || null;
-
-    return [
-      `status       ${safeStr(human.level, "unknown").toUpperCase()}  ${safeStr(human.message, "No summary available.")}`,
-      `window       ${safeStr(payload.window)}   queue=${safeStr(queue.state)} depth=${safeStr(queue.depth, "unknown")}`,
-      `runner       service=${safeStr(runner.service)} status=${safeStr(runner.status)} rules_loaded=${safeStr(runner.rules_loaded, "0")}`,
-      `activity     last=${safeStr(human.last_activity_human)}  decisions=${safeStr(totals.decisions, "0")}  tasks=${safeStr(totals.tasks, "0")}  runs=${safeStr(totals.runs, "0")}  failures=${safeStr(totals.failures, "0")}`,
-      `task_status  ${fmtCounts(payload.task_status_counts)}`,
-      `run_status   ${fmtCounts(payload.run_status_counts)}`,
-      "",
-      `last decision  id=${safeStr(lastDecision?.id)}  type=${safeStr(lastDecision?.decision)}  severity=${safeStr(lastDecision?.severity)}  alert=${safeStr(lastDecision?.alertname)}  ${fmtAge(lastDecision?.created_age_s)}`,
-      `last task      id=${safeStr(lastTask?.id)}  type=${safeStr(lastTask?.task_type)}  status=${safeStr(lastTask?.status)}  ${fmtAge(lastTask?.created_age_s)}`,
-      `last run       id=${safeStr(lastRun?.id)}  action=${safeStr(lastRun?.action)}  status=${safeStr(lastRun?.status)}  ${fmtAge(lastRun?.started_age_s)}`,
-    ].join("\n");
-  }
-
-  function fmtEmpty(message) {
-    return message;
-  }
-
-  function fmtDecisions(payload) {
-    if (!payload || !payload.ok) return `Runner unavailable.\n\nReason: ${payload?.error || "unknown"}`;
-    const decisions = payload.decisions || [];
-    if (!decisions.length) return fmtEmpty("No recent decisions in the selected window.");
-
-    const head = `window=${safeStr(payload.window)}  filter=${safeStr(payload.decision_type)}  count=${safeStr(payload.count, decisions.length)}`;
-    const lines = decisions.map((d) => {
-      const reason = safeStr(d.reason, "");
-      return [
-        `id=${safeStr(d.id).padEnd(4)}`,
-        `decision=${safeStr(d.decision).padEnd(14)}`,
-        `severity=${safeStr(d.severity).padEnd(8)}`,
-        `alert=${safeStr(d.alertname).padEnd(18)}`,
-        `${fmtAge(d.created_age_s).padEnd(10)}`,
-        reason ? `reason=${reason}` : "",
-      ].filter(Boolean).join("  ");
-    });
-    return [head, "", ...lines].join("\n");
-  }
-
-  function fmtTasks(payload) {
-    if (!payload || !payload.ok) return `Runner unavailable.\n\nReason: ${payload?.error || "unknown"}`;
-    const tasks = payload.tasks || [];
-    if (!tasks.length) return fmtEmpty("No recent tasks in the selected window.");
-
-    const head = `window=${safeStr(payload.window)}  filter=${safeStr(payload.task_status)}  count=${safeStr(payload.count, tasks.length)}`;
-    const lines = tasks.map((t) => {
-      const flags = [
-        t.has_error ? "error" : null,
-        t.has_result ? "result" : null,
-      ].filter(Boolean).join(",");
-      return [
-        `id=${safeStr(t.id).padEnd(4)}`,
-        `type=${safeStr(t.task_type).padEnd(10)}`,
-        `status=${safeStr(t.status).padEnd(10)}`,
-        `prio=${safeStr(t.priority).padEnd(3)}`,
-        `decision=${safeStr(t.decision_id).padEnd(4)}`,
-        `${fmtAge(t.created_age_s).padEnd(10)}`,
-        flags ? `flags=${flags}` : "",
-      ].filter(Boolean).join("  ");
-    });
-    return [head, "", ...lines].join("\n");
-  }
-
-  function fmtRuns(payload) {
-    if (!payload || !payload.ok) return `Runner unavailable.\n\nReason: ${payload?.error || "unknown"}`;
-    const runs = payload.runs || [];
-    if (!runs.length) return fmtEmpty("No recent runs in the selected window.");
-
-    const head = `window=${safeStr(payload.window)}  filter=${safeStr(payload.run_status)}  count=${safeStr(payload.count, runs.length)}`;
-    const lines = runs.map((r) => {
-      return [
-        `id=${safeStr(r.id).padEnd(4)}`,
-        `action=${safeStr(r.action).padEnd(20)}`,
-        `status=${safeStr(r.status).padEnd(10)}`,
-        `trigger=${safeStr(r.trigger_type).padEnd(8)}`,
-        `${fmtAge(r.started_age_s).padEnd(10)}`,
-        r.has_error ? "error=yes" : "",
-      ].filter(Boolean).join("  ");
-    });
-    return [head, "", ...lines].join("\n");
-  }
-
-  function fmtOutcomes(summary, tasksPayload, runsPayload) {
-    if (!summary || !summary.ok) return "Outcomes unavailable while runner is unreachable.";
-
-    const totals = summary.totals || {};
-    const taskCounts = summary.task_status_counts || {};
-    const runCounts = summary.run_status_counts || {};
-    const failedTasks = Number(taskCounts.failed || 0);
-    const failedRuns = Number(runCounts.failed || 0);
-    const totalFailures = Number(totals.failures || 0);
-
-    let headline = "Pipeline healthy.";
-    if (totalFailures > 0) headline = `Failures detected: ${totalFailures}.`;
-    else if ((tasksPayload?.count || 0) === 0 && (runsPayload?.count || 0) === 0) headline = "No recent task or run activity in the selected window.";
-
-    return [
-      headline,
-      "",
-      `failed tasks: ${failedTasks}`,
-      `failed runs:  ${failedRuns}`,
-      `queue state:  ${safeStr(summary.queue?.state)}`,
-      `last activity: ${safeStr(summary.human_status?.last_activity_human)}`,
-    ].join("\n");
-  }
-
-  async function refreshAll() {
-    const summaryOut = $("#summary-out");
-    const decisionsOut = $("#decisions-out");
-    const tasksOut = $("#tasks-out");
-    const runsOut = $("#runs-out");
-    const outcomesOut = $("#outcomes-out");
-
-    const summaryQuery = buildQuery({ window: state.window });
-    const decisionsQuery = buildQuery({
-      window: state.window,
-      decision_type: state.decisionType,
-      limit: DEFAULT_LIMIT,
-    });
-    const tasksQuery = buildQuery({
-      window: state.window,
-      task_status: state.taskStatus,
-      limit: DEFAULT_LIMIT,
-    });
-    const runsQuery = buildQuery({
-      window: state.window,
-      run_status: state.runStatus,
-      limit: DEFAULT_LIMIT,
-    });
-
-    const [summary, decisions, tasks, runs] = await Promise.all([
-      fetchJson(`/api/control-plane/summary?${summaryQuery}`),
-      fetchJson(`/api/control-plane/decisions?${decisionsQuery}`),
-      fetchJson(`/api/control-plane/tasks?${tasksQuery}`),
-      fetchJson(`/api/control-plane/runs?${runsQuery}`),
-    ]);
-
-    if (summaryOut) summaryOut.textContent = fmtSummary(summary.json);
-    if (decisionsOut) decisionsOut.textContent = fmtDecisions(decisions.json);
-    if (tasksOut) tasksOut.textContent = fmtTasks(tasks.json);
-    if (runsOut) runsOut.textContent = fmtRuns(runs.json);
-    if (outcomesOut) outcomesOut.textContent = fmtOutcomes(summary.json, tasks.json, runs.json);
-
-    if (summary.ok && summary.json?.runner?.status) {
-      setRunnerStatus(true, summary.json.runner.status);
-    } else {
-      setRunnerStatus(false, "error");
-    }
-  }
-
-  function wireControls() {
-    const btnRefreshAll = $("#btn-refresh-all");
-    const btnAuto = $("#btn-auto");
-    const decisionFilter = $("#decision-filter");
-    const taskFilter = $("#task-filter");
-    const runFilter = $("#run-filter");
-
-    function setAutoButton() {
-      if (!btnAuto) return;
-      btnAuto.textContent = state.auto ? "auto: on" : "auto: off";
-      btnAuto.classList.toggle("primary", state.auto);
-    }
-
-    function restartAuto() {
-      if (state.timer) clearInterval(state.timer);
-      state.timer = state.auto ? setInterval(refreshAll, AUTO_INTERVAL_MS) : null;
-    }
-
-    if (btnRefreshAll) {
-      btnRefreshAll.addEventListener("click", async () => {
-        await refreshAll();
-        toast("refreshed");
-      });
-    }
-
-    if (btnAuto) {
-      btnAuto.addEventListener("click", async () => {
-        state.auto = !state.auto;
-        setAutoButton();
-        restartAuto();
-        if (state.auto) await refreshAll();
-      });
-    }
-
-    document.querySelectorAll(".btn-window").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        state.window = btn.dataset.window || DEFAULT_WINDOW;
-        setWindowButtons();
-        await refreshAll();
-      });
-    });
-
-    if (decisionFilter) {
-      decisionFilter.addEventListener("change", async () => {
-        state.decisionType = decisionFilter.value || "all";
-        await refreshAll();
-      });
-    }
-
-    if (taskFilter) {
-      taskFilter.addEventListener("change", async () => {
-        state.taskStatus = taskFilter.value || "all";
-        await refreshAll();
-      });
-    }
-
-    if (runFilter) {
-      runFilter.addEventListener("change", async () => {
-        state.runStatus = runFilter.value || "all";
-        await refreshAll();
-      });
-    }
-
-    setAutoButton();
-    setWindowButtons();
-    restartAuto();
-  }
-
   document.addEventListener("DOMContentLoaded", async () => {
     ensurePowerlineAndTheme();
 
     const saved = localStorage.getItem(THEME_KEY);
     applyTheme(saved || "terminal");
 
+    initFromDom();
     hotkeys();
-    wireControls();
+    wireFilters();
+    wireWindowButtons();
+    wireSummaryControls();
+
     setTime();
     setInterval(setTime, 1000);
 
     await refreshAll();
+    if (autoEnabled) autoTimer = setInterval(refreshAll, AUTO_INTERVAL_MS);
   });
 })();
