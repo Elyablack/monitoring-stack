@@ -58,16 +58,28 @@ def create_app() -> FastAPI:
     def _parse_iso_ts(value: Any) -> Optional[datetime]:
         if value is None:
             return None
+
         text = str(value).strip()
         if not text:
             return None
+
+        for candidate in (
+            text,
+            text[:-1] + "+00:00" if text.endswith("Z") else None,
+        ):
+            if not candidate:
+                continue
+            try:
+                dt = datetime.fromisoformat(candidate)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return dt.astimezone(timezone.utc)
+            except Exception:
+                pass
+
         try:
-            if text.endswith("Z"):
-                text = text[:-1] + "+00:00"
-            dt = datetime.fromisoformat(text)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            return dt.astimezone(timezone.utc)
+            dt = datetime.strptime(text, "%Y-%m-%d %H:%M:%S UTC")
+            return dt.replace(tzinfo=timezone.utc)
         except Exception:
             return None
 
