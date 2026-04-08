@@ -255,6 +255,7 @@
     if (mode === "5xx") {
       return {
         fastName: "DemoAppButtonError503",
+        fastLabel: "fast 5xx demo alert",
         longName: "DemoAppHigh5xxRate",
         longLabel: "5xx-rate alert",
         trafficLabel: "5xx traffic",
@@ -264,6 +265,7 @@
     if (mode === "latency") {
       return {
         fastName: "DemoAppButtonSlow",
+        fastLabel: "fast latency demo alert",
         longName: "DemoAppHighP95Latency",
         longLabel: "latency alert",
         trafficLabel: "slow-request traffic",
@@ -272,6 +274,7 @@
 
     return {
       fastName: "DemoAppButtonError503 / DemoAppButtonSlow",
+      fastLabel: "fast combined demo alert",
       longName: "DemoAppHigh5xxRate / DemoAppHighP95Latency",
       longLabel: "combined demo alert",
       trafficLabel: "combined traffic",
@@ -283,6 +286,8 @@
     if (value.startsWith("detected-fast:")) return "fast-detected";
     if (value.startsWith("detected-long:")) return "long-detected";
     if (value === "fast-expired") return "fast-expired";
+    if (value === "waiting-fast") return "waiting-fast";
+    if (value === "watching-long") return "watching-long";
     return value;
   }
 
@@ -410,7 +415,7 @@
         renderScenarioStats();
         updateScenarioStatus(
           "info",
-          `Fast demo alert detected: ${alertCheck.fastMatch.alertname}`,
+          `${labels.fastLabel} detected: ${alertCheck.fastMatch.alertname}`,
           `${labels.trafficLabel} reached Alertmanager. Now watching for ${labels.longName}.`
         );
         appendEvent(`SCENARIO fast demo alert detected -> ${alertCheck.fastMatch.alertname}`);
@@ -422,7 +427,7 @@
       renderScenarioStats();
       updateScenarioStatus(
         "info",
-        `Scenario finished. Waiting for fast alert: ${labels.fastName}.`,
+        `Scenario finished. Waiting for ${labels.fastName}.`,
         `Prometheus and Alertmanager may need a few extra evaluation seconds before ${labels.fastName} becomes visible.`
       );
 
@@ -451,7 +456,7 @@
         updateScenarioStatus(
           "ok",
           `Long demo alert detected: ${alertCheck.longMatch.alertname}`,
-          `The scenario reached ${labels.longName}, not only the fast demo alert.`
+          `The scenario reached ${labels.longName}, not only the fast alert ${scenarioState.fastDetectedName || labels.fastName}.`
         );
         appendEvent(`SCENARIO long demo alert detected -> ${alertCheck.longMatch.alertname}`);
         await refreshObsNow({ silent: true });
@@ -463,8 +468,8 @@
         renderScenarioStats();
         updateScenarioStatus(
           "warning",
-          `Fast alert ${scenarioState.fastDetectedName || labels.fastName} was detected and then expired.`,
-          `${labels.longName} did not appear in time. This usually means the instant demo alert worked, but the longer Prometheus rule did not sustain long enough.`
+          `${labels.fastLabel} expired: ${scenarioState.fastDetectedName || labels.fastName}`,
+          `${labels.longName} did not appear in time. The fast demo alert worked, but the longer Prometheus rule did not sustain long enough.`
         );
         await refreshObsNow({ silent: true });
         await sleep(LONG_DEMO_WATCH_STEP_MS);
@@ -475,7 +480,7 @@
       renderScenarioStats();
       updateScenarioStatus(
         "info",
-        `Fast alert detected. Waiting for ${labels.longName}.`,
+        `${labels.fastLabel} detected. Waiting for ${labels.longName}.`,
         `The ${labels.trafficLabel} worked. Prometheus still needs more evaluation time for ${labels.longName}.`
       );
 
@@ -490,7 +495,7 @@
       if (scenarioState.fastSeenOnce) {
         updateScenarioStatus(
           "warning",
-          `Fast alert ${scenarioState.fastDetectedName || labels.fastName} was detected, but ${labels.longName} did not appear.`,
+          `${labels.fastLabel} was detected, but ${labels.longName} did not appear.`,
           `The scenario succeeded at the fast-alert level, but the longer Prometheus rule did not hold long enough or needs softer thresholds.`
         );
       } else {
@@ -614,7 +619,7 @@
           renderScenarioStats();
           updateScenarioStatus(
             "warning",
-            `Fast alert ${labels.fastName} did not appear in time.`,
+            `${labels.fastName} did not appear in time.`,
             `Refresh alerts and check Prometheus evaluation timing or make the scenario burst stronger.`
           );
           await refreshObsNow({ silent: true });
