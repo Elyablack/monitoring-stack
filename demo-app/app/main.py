@@ -52,16 +52,6 @@ def create_app() -> FastAPI:
     metrics = Metrics(service=settings.app_name)
     limiter = SlidingWindowRateLimiter(limit=settings.rate_limit, window_s=settings.rate_window_s)
 
-    grafana_base = (settings.grafana_public_url or "").rstrip("/")
-
-    grafana_urls = {
-        "control_plane": f"{grafana_base}/d/control-plane-overview" if grafana_base else "#",
-        "demo_app": f"{grafana_base}/d/demo-app-observability" if grafana_base else "#",
-        "mac": f"{grafana_base}/d/mac-dashboard" if grafana_base else "#",
-        "application_alerts": f"{grafana_base}/d/application-alerts" if grafana_base else "#",
-        "host_alerts": f"{grafana_base}/d/host-alerts" if grafana_base else "#",
-    }
-
     def _now_utc() -> datetime:
         return datetime.now(timezone.utc)
 
@@ -475,7 +465,6 @@ def create_app() -> FastAPI:
             "app_name": settings.app_name,
             "env": settings.env,
             "page_title": f"{settings.app_name} / dashboards",
-            "grafana_urls": grafana_urls,
         }
         return templates.TemplateResponse("dashboards.html", ctx)
 
