@@ -253,43 +253,95 @@ def create_app() -> FastAPI:
         decisions: list[dict[str, Any]],
         runs: list[dict[str, Any]],
         queue_depth: Optional[float],
+        window: str,
     ) -> dict[str, Any]:
         runner_ok = str(health.get("status") or "").lower() == "ok"
+
         task_status = _status_counts(tasks)
         run_status = _status_counts(runs)
-        failures = int(task_status.get("failed", 0)) + int(run_status.get("failed", 0))
-        last_decision = _sort_recent(decisions)[:1]
-        last_task = _sort_recent(tasks)[:1]
-        last_run = _sort_recent(runs)[:1]
+
+        failures_in_window = int(task_status.get("failed", 0)) + int(run_status.get("failed", 0))
+        running_now = int(task_status.get("running", 0)) + int(run_status.get("running", 0))
+
+        recent_cutoff = _now_utc() - timedelta(minutes=15)
+
+        def is_recent(item: dict[str, Any]) -> bool:
+            dt = (
+                _parse_iso_ts(item.get("finished_at"))
+                or _parse_iso_ts(item.get("started_at"))
+                or _parse_iso_ts(item.get("created_at"))
+            )
+            return dt is not None and dt >= recent_cutoff
+
+        recent_tasks = [item for item in tasks if is_recent(item)]
+        recent_runs = [item for item in runs if is_recent(item)]
+
+        recent_task_status = _status_counts(recent_tasks)
+        recent_run_status = _status_counts(recent_runs)
+        recent_failures = int(recent_task_status.get("failed", 0)) + int(recent_run_status.get("failed", 0))
+
+        queue_state = _queue_state(queue_depth)
+
+        decisions_recent = _sort_recent(decisions)
+        tasks_recent = _sort_recent(tasks)
+        runs_recent = _sort_recent(runs)
+
+        last_decision = decisions_recent[0] if decisions_recent else None
+        last_task = tasks_recent[0] if tasks_recent else None
+        last_run = runs_recent[0] if runs_recent else None
 
         latest_age_candidates = [
-            _age_seconds_from_dt(_parse_iso_ts(last_decision[0].get("created_at"))) if last_decision else None,
-            _age_seconds_from_dt(_parse_iso_ts(last_task[0].get("created_at"))) if last_task else None,
-            _age_seconds_from_dt(_parse_iso_ts(last_run[0].get("started_at"))) if last_run else None,
+            _age_seconds_from_dt(_parse_iso_ts(last_decision.get("created_at"))) if last_decision else None,
+            _age_seconds_from_dt(_parse_iso_ts(last_task.get("created_at"))) if last_task else None,
+            _age_seconds_from_dt(_parse_iso_ts(last_run.get("started_at"))) if last_run else None,
         ]
         latest_age_candidates = [value for value in latest_age_candidates if value is not None]
         last_activity_age = min(latest_age_candidates) if latest_age_candidates else None
 
+        latest_task_status = str(last_task.get("status") or "").lower() if last_task else ""
+        latest_run_status = str(last_run.get("status") or "").lower() if last_run else ""
+
+        latest_success = latest_task_status in {"success", "skipped"} or latest_run_status in {"success", "skipped"}
+        latest_failed = latest_task_status == "failed" or latest_run_status == "failed"
+
         if not runner_ok:
             level = "degraded"
             message = "Runner is unavailable. Control-plane data may be stale."
-        elif failures > 0:
-            level = "warning"
-            message = f"Recent activity detected with {failures} failure(s) in the pipeline."
         elif not decisions and not tasks and not runs:
             level = "idle"
             message = "Runner is healthy, but no recent pipeline activity was detected."
+        elif recent_failures > 0 or latest_failed:
+            level = "warning"
+            message = f"Recent pipeline activity needs attention. {recent_failures or 1} fresh failure(s) detected."
+        elif queue_state in {"active", "busy"} or running_now > 0:
+            level = "warning"
+            message = "Pipeline activity is in progress. Queue or running work is still active."
+        elif failures_in_window > 0:
+            level = "info"
+            if latest_success:
+                message = (
+                    f"Recent pipeline activity is healthy. "
+                    f"{failures_in_window} older failure(s) remain in the selected {window} window."
+                )
+            else:
+                message = (
+                    f"No fresh failures detected, but "
+                    f"{failures_in_window} older failure(s) remain in the selected {window} window."
+                )
         else:
             level = "healthy"
-            message = "Runner is healthy and recent pipeline activity was detected."
+            message = "Runner is healthy and recent pipeline activity looks good."
 
         return {
             "level": level,
             "message": message,
             "last_activity_age_s": last_activity_age,
             "last_activity_human": _format_age(last_activity_age),
-            "queue_state": _queue_state(queue_depth),
-            "failures": failures,
+            "queue_state": queue_state,
+            "failures": failures_in_window,
+            "recent_failures": recent_failures,
+            "running_now": running_now,
+            "latest_success": latest_success,
         }
 
     async def _queue_depth_value() -> Optional[float]:
@@ -333,6 +385,7 @@ def create_app() -> FastAPI:
             decisions=decisions,
             runs=runs,
             queue_depth=queue_depth,
+            window=window,
         )
 
         return {
@@ -345,6 +398,7 @@ def create_app() -> FastAPI:
                 "decisions": len(decisions),
                 "runs": len(runs),
                 "failures": human["failures"],
+                "recent_failures": human["recent_failures"],
             },
             "queue": {
                 "depth": queue_depth,
@@ -422,8 +476,8 @@ def create_app() -> FastAPI:
                 r = await app.state.http.get(url, timeout=2.0)
                 ok = 200 <= r.status_code < 400
                 return url, ok, f"http={r.status_code}"
-            except Exception as e:
-                return url, False, str(e)
+            except Exception as exc:
+                return url, False, str(exc)
 
         results = await asyncio.gather(*(_check(u) for u in urls))
         bad = [(u, msg) for (u, ok, msg) in results if not ok]
@@ -476,8 +530,8 @@ def create_app() -> FastAPI:
         try:
             alerts = await app.state.alerts.get_alerts()
             return {"ok": True, "count": len(alerts), "alerts": [asdict(a) for a in alerts]}
-        except Exception as e:
-            return {"ok": False, "error": str(e)}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
 
     @app.get("/_obs/logs")
     async def obs_logs(mode: str = "buttons", limit: int = 30):
@@ -491,8 +545,8 @@ def create_app() -> FastAPI:
                 "summary": summarize_entries(entries),
                 "entries": [asdict(e) for e in entries],
             }
-        except Exception as e:
-            return {"ok": False, "error": str(e)}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
 
     @app.get("/api/control-plane/healthz")
     async def control_plane_healthz():
