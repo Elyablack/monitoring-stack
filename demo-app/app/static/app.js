@@ -1,4 +1,3 @@
-// /srv/monitoring/demo-app/app/static/app.js
 (function () {
   const THEME_KEY = "demoapp_theme";
   const themes = ["terminal", "light"];
@@ -22,12 +21,16 @@
     alertState: "waiting",
     fastAlertNames: [],
     longAlertNames: [],
+    startedAtMs: null,
+    runId: 0,
   };
 
   const obsState = {
     logsMode: "buttons",
     refreshAlerts: null,
     refreshLogs: null,
+    lastLogsPayload: null,
+    lastAlertsPayload: null,
   };
 
   function $(sel) {
@@ -55,6 +58,20 @@
 
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function nowMs() {
+    return Date.now();
+  }
+
+  function parseTsToMs(ts) {
+    if (!ts) return null;
+    const parsed = Date.parse(ts);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function currentScenarioCutoffMs() {
+    return scenarioState.startedAtMs;
   }
 
   function themeIcon(theme) {
@@ -275,17 +292,50 @@
     scenarioState.alertState = "waiting";
     scenarioState.fastAlertNames = fastAlertNames || [];
     scenarioState.longAlertNames = longAlertNames || [];
+    scenarioState.startedAtMs = nowMs();
+    scenarioState.runId += 1;
     renderScenarioStats();
   }
 
-  function stopScenario() {
+  function stopScenario(opts = {}) {
     scenarioState.stopRequested = true;
     scenarioState.running = false;
     scenarioState.mode = "idle";
     scenarioState.alertState = "stopped";
     renderScenarioStats();
-    updateScenarioStatus("idle", "Scenario stopped.", "You can start another demo scenario.");
-    appendEvent("SCENARIO stopped");
+
+    if (!opts.quiet) {
+      updateScenarioStatus("idle", "Scenario stopped.", "You can start another demo scenario.");
+      appendEvent("SCENARIO stopped");
+    }
+  }
+
+  async function ensureScenarioSlot() {
+    if (!scenarioState.running) return;
+    appendEvent("SCENARIO interrupt previous run");
+    stopScenario({ quiet: true });
+    await sleep(50);
+  }
+
+  function filterEntriesForScenario(entries) {
+    const cutoff = currentScenarioCutoffMs();
+    if (!Array.isArray(entries)) return [];
+    if (!cutoff) return entries;
+
+    return entries.filter((entry) => {
+      const tsMs = parseTsToMs(entry.ts);
+      if (!tsMs) return false;
+      return tsMs >= cutoff - 1000;
+    });
+  }
+
+  function summarizeEntries(entries) {
+    const byEvent = {};
+    for (const entry of entries) {
+      const ev = entry?.event || "unknown";
+      byEvent[ev] = (byEvent[ev] || 0) + 1;
+    }
+    return byEvent;
   }
 
   async function refreshObsNow(opts = {}) {
@@ -310,10 +360,14 @@
     return { fastMatch, longMatch, payload: r.json };
   }
 
-  async function waitForFastAlert() {
+  async function waitForFastAlert(runId) {
     const started = Date.now();
 
-    while (!scenarioState.stopRequested && Date.now() - started < FAST_ALERT_WAIT_MS) {
+    while (
+      !scenarioState.stopRequested &&
+      scenarioState.runId === runId &&
+      Date.now() - started < FAST_ALERT_WAIT_MS
+    ) {
       const alertCheck = await checkScenarioAlerts();
 
       if (alertCheck?.fastMatch) {
@@ -344,10 +398,14 @@
     return false;
   }
 
-  async function watchLongDemoWindow() {
+  async function watchLongDemoWindow(runId) {
     const started = Date.now();
 
-    while (!scenarioState.stopRequested && Date.now() - started < LONG_DEMO_WATCH_MS) {
+    while (
+      !scenarioState.stopRequested &&
+      scenarioState.runId === runId &&
+      Date.now() - started < LONG_DEMO_WATCH_MS
+    ) {
       const alertCheck = await checkScenarioAlerts();
 
       if (alertCheck?.longMatch) {
@@ -375,7 +433,7 @@
       await sleep(LONG_DEMO_WATCH_STEP_MS);
     }
 
-    if (!scenarioState.stopRequested) {
+    if (!scenarioState.stopRequested && scenarioState.runId === runId) {
       scenarioState.alertState = "timeout";
       renderScenarioStats();
       updateScenarioStatus(
@@ -388,10 +446,7 @@
   }
 
   async function runBurst(kind) {
-    if (scenarioState.running) {
-      toast("scenario already running");
-      return;
-    }
+    await ensureScenarioSlot();
 
     const msInput = $("#slow-ms");
     const burstInput = $("#burst-count");
@@ -420,6 +475,7 @@
           : ["DemoAppHigh5xxRate", "DemoAppHighP95Latency"];
 
     resetScenarioCounters(kind, fastAlertNames, longAlertNames);
+    const runId = scenarioState.runId;
 
     updateScenarioStatus(
       "running",
@@ -430,7 +486,7 @@
 
     try {
       for (let i = 0; i < burstCount; i += 1) {
-        if (scenarioState.stopRequested) break;
+        if (scenarioState.stopRequested || scenarioState.runId !== runId) break;
 
         if (kind === "5xx" || kind === "both") {
           const r = await hit("/error?code=503", { silent: true });
@@ -451,7 +507,7 @@
           }
         }
 
-        if ((kind === "latency" || kind === "both") && !scenarioState.stopRequested) {
+        if ((kind === "latency" || kind === "both") && !scenarioState.stopRequested && scenarioState.runId === runId) {
           const r = await hit(`/slow?ms=${encodeURIComponent(String(slowMs))}`, { silent: true });
           scenarioState.sent += 1;
           if (r.status === 200) scenarioState.slow += 1;
@@ -477,13 +533,13 @@
         }
       }
 
-      if (!scenarioState.stopRequested) {
+      if (!scenarioState.stopRequested && scenarioState.runId === runId) {
         await refreshObsNow({ silent: true });
-        const fastFound = await waitForFastAlert();
+        const fastFound = await waitForFastAlert(runId);
 
-        if (fastFound) {
-          await watchLongDemoWindow();
-        } else {
+        if (fastFound && !scenarioState.stopRequested && scenarioState.runId === runId) {
+          await watchLongDemoWindow(runId);
+        } else if (!fastFound && !scenarioState.stopRequested && scenarioState.runId === runId) {
           scenarioState.alertState = "timeout";
           renderScenarioStats();
           updateScenarioStatus(
@@ -495,7 +551,7 @@
         }
       }
     } finally {
-      if (!scenarioState.stopRequested) {
+      if (!scenarioState.stopRequested && scenarioState.runId === runId) {
         scenarioState.running = false;
         scenarioState.mode = "idle";
       }
@@ -607,6 +663,8 @@
   function fmtAlerts(payload) {
     if (!payload || !payload.ok) return `error: ${payload?.error || "unknown"}`;
 
+    obsState.lastAlertsPayload = payload;
+
     const alerts = payload.alerts || [];
     const active = alerts.filter((a) => a.status === "active").length;
     const suppressed = alerts.filter((a) => a.status === "suppressed").length;
@@ -662,16 +720,19 @@
   function fmtLogs(payload) {
     if (!payload || !payload.ok) return `error: ${payload?.error || "unknown"}`;
 
-    const entries = payload.entries || [];
-    const byEvent = payload.summary?.by_event ? JSON.stringify(payload.summary.by_event) : "{}";
+    obsState.lastLogsPayload = payload;
+
+    const allEntries = payload.entries || [];
+    const entries = filterEntriesForScenario(allEntries);
+    const byEvent = summarizeEntries(entries);
 
     const summaryCount = $("#logs-summary-count");
     const summarySub = $("#logs-summary-sub");
 
-    if (summaryCount) summaryCount.textContent = String(payload.count ?? entries.length);
-    if (summarySub) summarySub.textContent = `events=${byEvent}`;
+    if (summaryCount) summaryCount.textContent = String(entries.length);
+    if (summarySub) summarySub.textContent = `events=${JSON.stringify(byEvent)}`;
 
-    const head = `count=${payload.count ?? entries.length} events=${byEvent}`;
+    const head = `count=${entries.length} events=${JSON.stringify(byEvent)}`;
     const lines = entries.map(summarizeLogEntry);
     return [head, "", ...lines].join("\n");
   }
