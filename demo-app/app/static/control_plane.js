@@ -214,6 +214,65 @@
     return String(value);
   }
 
+  function formatCounts(counts) {
+    const parts = Object.entries(counts || {});
+    if (!parts.length) return "—";
+    return parts
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([k, v]) => `${k}=${v}`)
+      .join(" ");
+  }
+
+  function renderSummaryMessage(levelLabel, message, sub, level) {
+    const wrap = el("div", "cp-summary-message");
+    const pill = el("div", `cp-summary-pill ${level}`, levelLabel);
+    const textWrap = el("div", "cp-summary-message-text");
+    const title = el("div", "cp-summary-message-title", message);
+    const subtitle = el("div", "cp-summary-message-sub", sub);
+    textWrap.appendChild(title);
+    textWrap.appendChild(subtitle);
+    wrap.appendChild(pill);
+    wrap.appendChild(textWrap);
+    return wrap;
+  }
+
+  function renderStatBox(label, value) {
+    const box = el("div", "cp-summary-box");
+    box.appendChild(el("div", "cp-summary-box-label", label));
+    box.appendChild(el("div", "cp-summary-box-value", value));
+    return box;
+  }
+
+  function renderMetaBox(title, lines) {
+    const box = el("div", "cp-summary-meta-box");
+    box.appendChild(el("div", "cp-summary-meta-title", title));
+    const body = el("div", "cp-summary-meta-body");
+    lines.forEach((line) => body.appendChild(el("div", "cp-summary-line", line)));
+    box.appendChild(body);
+    return box;
+  }
+
+  function renderLastBox(title, payload, fields) {
+    const box = el("div", "cp-summary-last-box");
+    box.appendChild(el("div", "cp-summary-last-title", title));
+
+    const body = el("div", "cp-summary-last-body");
+    if (!payload) {
+      body.appendChild(el("div", "cp-summary-line", "—"));
+      box.appendChild(body);
+      return box;
+    }
+
+    fields.forEach(([label, key]) => {
+      let value = payload[key];
+      if (key.endsWith("_age_s")) value = formatAge(value);
+      body.appendChild(el("div", "cp-summary-line", `${label}=${safeText(value)}`));
+    });
+
+    box.appendChild(body);
+    return box;
+  }
+
   function renderSummaryCard(payload) {
     const host = $("#summary-out");
     if (!host) return;
@@ -304,65 +363,6 @@
       ["when", "started_age_s"],
     ]));
     host.appendChild(footGrid);
-  }
-
-  function renderSummaryMessage(levelLabel, message, sub, level) {
-    const wrap = el("div", "cp-summary-message");
-    const pill = el("div", `cp-summary-pill ${level}`, levelLabel);
-    const textWrap = el("div", "cp-summary-message-text");
-    const title = el("div", "cp-summary-message-title", message);
-    const subtitle = el("div", "cp-summary-message-sub", sub);
-    textWrap.appendChild(title);
-    textWrap.appendChild(subtitle);
-    wrap.appendChild(pill);
-    wrap.appendChild(textWrap);
-    return wrap;
-  }
-
-  function renderStatBox(label, value) {
-    const box = el("div", "cp-summary-box");
-    box.appendChild(el("div", "cp-summary-box-label", label));
-    box.appendChild(el("div", "cp-summary-box-value", value));
-    return box;
-  }
-
-  function renderMetaBox(title, lines) {
-    const box = el("div", "cp-summary-meta-box");
-    box.appendChild(el("div", "cp-summary-meta-title", title));
-    const body = el("div", "cp-summary-meta-body");
-    lines.forEach((line) => body.appendChild(el("div", "cp-summary-line", line)));
-    box.appendChild(body);
-    return box;
-  }
-
-  function renderLastBox(title, payload, fields) {
-    const box = el("div", "cp-summary-last-box");
-    box.appendChild(el("div", "cp-summary-last-title", title));
-
-    const body = el("div", "cp-summary-last-body");
-    if (!payload) {
-      body.appendChild(el("div", "cp-summary-line", "—"));
-      box.appendChild(body);
-      return box;
-    }
-
-    fields.forEach(([label, key]) => {
-      let value = payload[key];
-      if (key.endsWith("_age_s")) value = formatAge(value);
-      body.appendChild(el("div", "cp-summary-line", `${label}=${safeText(value)}`));
-    });
-
-    box.appendChild(body);
-    return box;
-  }
-
-  function formatCounts(counts) {
-    const parts = Object.entries(counts || {});
-    if (!parts.length) return "—";
-    return parts
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([k, v]) => `${k}=${v}`)
-      .join(" ");
   }
 
   function formatDecisionLine(item) {
@@ -457,12 +457,7 @@
     const taskFilter = $("#task-filter")?.value || "all";
     const runFilter = $("#run-filter")?.value || "all";
 
-    const [
-      summaryRes,
-      decisionsRes,
-      tasksRes,
-      runsRes,
-    ] = await Promise.all([
+    const [summaryRes, decisionsRes, tasksRes, runsRes] = await Promise.all([
       fetchJson(`/api/control-plane/summary?window=${encodeURIComponent(state.window)}`),
       fetchJson(`/api/control-plane/decisions?window=${encodeURIComponent(state.window)}&decision_type=${encodeURIComponent(decisionFilter)}&limit=50`),
       fetchJson(`/api/control-plane/tasks?window=${encodeURIComponent(state.window)}&task_status=${encodeURIComponent(taskFilter)}&limit=50`),
@@ -475,10 +470,7 @@
     renderList("#runs-out", runsRes.json?.runs || [], "No recent runs in the selected window.", formatRunLine);
     renderOutcomes(summaryRes.json, tasksRes.json, runsRes.json);
 
-    if (!silent) {
-      toast("refreshed");
-    }
-
+    if (!silent) toast("refreshed");
     await refreshRunnerStatus();
   }
 
