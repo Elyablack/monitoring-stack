@@ -18,19 +18,20 @@
     sent: 0,
     errors: 0,
     slow: 0,
-    alertState: "waiting",
+    alertState: "idle",
     fastAlertNames: [],
     longAlertNames: [],
     startedAtMs: null,
     runId: 0,
+    fastDetectedName: null,
+    fastSeenOnce: false,
+    longSeenOnce: false,
   };
 
   const obsState = {
     logsMode: "buttons",
     refreshAlerts: null,
     refreshLogs: null,
-    lastLogsPayload: null,
-    lastAlertsPayload: null,
   };
 
   function $(sel) {
@@ -250,10 +251,38 @@
     return active.length ? active[0] : null;
   }
 
+  function scenarioLabels(mode) {
+    if (mode === "5xx") {
+      return {
+        fastName: "DemoAppButtonError503",
+        longName: "DemoAppHigh5xxRate",
+        longLabel: "5xx-rate alert",
+        trafficLabel: "5xx traffic",
+      };
+    }
+
+    if (mode === "latency") {
+      return {
+        fastName: "DemoAppButtonSlow",
+        longName: "DemoAppHighP95Latency",
+        longLabel: "latency alert",
+        trafficLabel: "slow-request traffic",
+      };
+    }
+
+    return {
+      fastName: "DemoAppButtonError503 / DemoAppButtonSlow",
+      longName: "DemoAppHigh5xxRate / DemoAppHighP95Latency",
+      longLabel: "combined demo alert",
+      trafficLabel: "combined traffic",
+    };
+  }
+
   function shortAlertState(value) {
-    if (!value) return "waiting";
-    if (value.startsWith("detected-fast:")) return "demo-fast";
-    if (value.startsWith("detected-long:")) return "demo-live";
+    if (!value) return "idle";
+    if (value.startsWith("detected-fast:")) return "fast-detected";
+    if (value.startsWith("detected-long:")) return "long-detected";
+    if (value === "fast-expired") return "fast-expired";
     return value;
   }
 
@@ -289,11 +318,14 @@
     scenarioState.sent = 0;
     scenarioState.errors = 0;
     scenarioState.slow = 0;
-    scenarioState.alertState = "waiting";
+    scenarioState.alertState = "sending";
     scenarioState.fastAlertNames = fastAlertNames || [];
     scenarioState.longAlertNames = longAlertNames || [];
     scenarioState.startedAtMs = nowMs();
     scenarioState.runId += 1;
+    scenarioState.fastDetectedName = null;
+    scenarioState.fastSeenOnce = false;
+    scenarioState.longSeenOnce = false;
     renderScenarioStats();
   }
 
@@ -362,6 +394,7 @@
 
   async function waitForFastAlert(runId) {
     const started = Date.now();
+    const labels = scenarioLabels(scenarioState.mode);
 
     while (
       !scenarioState.stopRequested &&
@@ -371,24 +404,26 @@
       const alertCheck = await checkScenarioAlerts();
 
       if (alertCheck?.fastMatch) {
+        scenarioState.fastSeenOnce = true;
+        scenarioState.fastDetectedName = alertCheck.fastMatch.alertname;
         scenarioState.alertState = `detected-fast:${alertCheck.fastMatch.alertname}`;
         renderScenarioStats();
         updateScenarioStatus(
           "info",
           `Fast demo alert detected: ${alertCheck.fastMatch.alertname}`,
-          "Traffic reached Alertmanager. Now waiting for the longer demo rule window."
+          `${labels.trafficLabel} reached Alertmanager. Now watching for ${labels.longName}.`
         );
         appendEvent(`SCENARIO fast demo alert detected -> ${alertCheck.fastMatch.alertname}`);
         await refreshObsNow({ silent: true });
         return true;
       }
 
-      scenarioState.alertState = "waiting";
+      scenarioState.alertState = "waiting-fast";
       renderScenarioStats();
       updateScenarioStatus(
         "info",
-        "Scenario finished. Waiting for the fast demo alert to appear.",
-        "Prometheus and Alertmanager may need a few extra evaluation seconds before the alert becomes visible."
+        `Scenario finished. Waiting for fast alert: ${labels.fastName}.`,
+        `Prometheus and Alertmanager may need a few extra evaluation seconds before ${labels.fastName} becomes visible.`
       );
 
       await refreshObsNow({ silent: true });
@@ -400,6 +435,7 @@
 
   async function watchLongDemoWindow(runId) {
     const started = Date.now();
+    const labels = scenarioLabels(scenarioState.mode);
 
     while (
       !scenarioState.stopRequested &&
@@ -409,24 +445,38 @@
       const alertCheck = await checkScenarioAlerts();
 
       if (alertCheck?.longMatch) {
+        scenarioState.longSeenOnce = true;
         scenarioState.alertState = `detected-long:${alertCheck.longMatch.alertname}`;
         renderScenarioStats();
         updateScenarioStatus(
           "ok",
-          `Longer demo alert detected: ${alertCheck.longMatch.alertname}`,
-          "The scenario reached the longer demo rule window, not only the instant button alert."
+          `Long demo alert detected: ${alertCheck.longMatch.alertname}`,
+          `The scenario reached ${labels.longName}, not only the fast demo alert.`
         );
-        appendEvent(`SCENARIO longer demo alert detected -> ${alertCheck.longMatch.alertname}`);
+        appendEvent(`SCENARIO long demo alert detected -> ${alertCheck.longMatch.alertname}`);
         await refreshObsNow({ silent: true });
         return;
       }
 
-      scenarioState.alertState = "watching";
+      if (alertCheck && !alertCheck.fastMatch && scenarioState.fastSeenOnce) {
+        scenarioState.alertState = "fast-expired";
+        renderScenarioStats();
+        updateScenarioStatus(
+          "warning",
+          `Fast alert ${scenarioState.fastDetectedName || labels.fastName} was detected and then expired.`,
+          `${labels.longName} did not appear in time. This usually means the instant demo alert worked, but the longer Prometheus rule did not sustain long enough.`
+        );
+        await refreshObsNow({ silent: true });
+        await sleep(LONG_DEMO_WATCH_STEP_MS);
+        continue;
+      }
+
+      scenarioState.alertState = "watching-long";
       renderScenarioStats();
       updateScenarioStatus(
         "info",
-        "Fast demo alert detected. Waiting for the longer demo alert window.",
-        "The traffic worked. Prometheus still needs more evaluation time for the longer demo rule."
+        `Fast alert detected. Waiting for ${labels.longName}.`,
+        `The ${labels.trafficLabel} worked. Prometheus still needs more evaluation time for ${labels.longName}.`
       );
 
       await refreshObsNow({ silent: true });
@@ -436,11 +486,21 @@
     if (!scenarioState.stopRequested && scenarioState.runId === runId) {
       scenarioState.alertState = "timeout";
       renderScenarioStats();
-      updateScenarioStatus(
-        "warning",
-        "Fast demo alert was detected, but the longer demo alert is not visible yet.",
-        "The scenario succeeded, but the longer rule still needs more time or lighter thresholds."
-      );
+
+      if (scenarioState.fastSeenOnce) {
+        updateScenarioStatus(
+          "warning",
+          `Fast alert ${scenarioState.fastDetectedName || labels.fastName} was detected, but ${labels.longName} did not appear.`,
+          `The scenario succeeded at the fast-alert level, but the longer Prometheus rule did not hold long enough or needs softer thresholds.`
+        );
+      } else {
+        updateScenarioStatus(
+          "warning",
+          `${labels.longName} is not visible yet.`,
+          `The scenario finished, but neither the sustained rule nor a stable follow-up alert became visible in the selected watch window.`
+        );
+      }
+
       await refreshObsNow({ silent: true });
     }
   }
@@ -476,6 +536,7 @@
 
     resetScenarioCounters(kind, fastAlertNames, longAlertNames);
     const runId = scenarioState.runId;
+    const labels = scenarioLabels(kind);
 
     updateScenarioStatus(
       "running",
@@ -534,7 +595,16 @@
       }
 
       if (!scenarioState.stopRequested && scenarioState.runId === runId) {
+        scenarioState.alertState = "waiting-fast";
+        renderScenarioStats();
+        updateScenarioStatus(
+          "info",
+          `Traffic sent. Waiting for ${labels.fastName}.`,
+          `Current run finished sending requests. Waiting for the fast demo alert to appear.`
+        );
+
         await refreshObsNow({ silent: true });
+
         const fastFound = await waitForFastAlert(runId);
 
         if (fastFound && !scenarioState.stopRequested && scenarioState.runId === runId) {
@@ -544,8 +614,8 @@
           renderScenarioStats();
           updateScenarioStatus(
             "warning",
-            "Scenario finished, but the fast demo alert did not appear in time.",
-            "Refresh alerts and check Prometheus evaluation timing or make the scenario burst stronger."
+            `Fast alert ${labels.fastName} did not appear in time.`,
+            `Refresh alerts and check Prometheus evaluation timing or make the scenario burst stronger.`
           );
           await refreshObsNow({ silent: true });
         }
@@ -663,8 +733,6 @@
   function fmtAlerts(payload) {
     if (!payload || !payload.ok) return `error: ${payload?.error || "unknown"}`;
 
-    obsState.lastAlertsPayload = payload;
-
     const alerts = payload.alerts || [];
     const active = alerts.filter((a) => a.status === "active").length;
     const suppressed = alerts.filter((a) => a.status === "suppressed").length;
@@ -719,8 +787,6 @@
 
   function fmtLogs(payload) {
     if (!payload || !payload.ok) return `error: ${payload?.error || "unknown"}`;
-
-    obsState.lastLogsPayload = payload;
 
     const allEntries = payload.entries || [];
     const entries = filterEntriesForScenario(allEntries);
@@ -851,7 +917,7 @@
     updateScenarioStatus(
       "idle",
       "Pick a scenario to generate alert-friendly traffic.",
-      "Fast demo alerts should appear first. Longer demo alerts need a wider Prometheus window."
+      "Fast demo alerts should appear first. Longer demo alerts depend on sustained Prometheus rule windows."
     );
 
     await refreshStatusLoop();
