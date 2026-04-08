@@ -1,3 +1,4 @@
+// /srv/monitoring/demo-app/app/static/app.js
 (function () {
   const THEME_KEY = "demoapp_theme";
   const themes = ["terminal", "light"];
@@ -21,6 +22,12 @@
     alertState: "waiting",
     fastAlertNames: [],
     longAlertNames: [],
+  };
+
+  const obsState = {
+    logsMode: "buttons",
+    refreshAlerts: null,
+    refreshLogs: null,
   };
 
   function $(sel) {
@@ -281,6 +288,18 @@
     appendEvent("SCENARIO stopped");
   }
 
+  async function refreshObsNow(opts = {}) {
+    const refreshAlerts = obsState.refreshAlerts;
+    const refreshLogs = obsState.refreshLogs;
+
+    if (typeof refreshAlerts === "function") {
+      await refreshAlerts({ silent: opts.silent === true });
+    }
+    if (typeof refreshLogs === "function") {
+      await refreshLogs({ silent: opts.silent === true });
+    }
+  }
+
   async function checkScenarioAlerts() {
     const r = await fetchJson("/_obs/alerts");
     if (!r.ok || !r.json?.ok) return null;
@@ -306,6 +325,7 @@
           "Traffic reached Alertmanager. Now waiting for the longer demo rule window."
         );
         appendEvent(`SCENARIO fast demo alert detected -> ${alertCheck.fastMatch.alertname}`);
+        await refreshObsNow({ silent: true });
         return true;
       }
 
@@ -317,6 +337,7 @@
         "Prometheus and Alertmanager may need a few extra evaluation seconds before the alert becomes visible."
       );
 
+      await refreshObsNow({ silent: true });
       await sleep(FAST_ALERT_WAIT_STEP_MS);
     }
 
@@ -338,6 +359,7 @@
           "The scenario reached the longer demo rule window, not only the instant button alert."
         );
         appendEvent(`SCENARIO longer demo alert detected -> ${alertCheck.longMatch.alertname}`);
+        await refreshObsNow({ silent: true });
         return;
       }
 
@@ -349,6 +371,7 @@
         "The traffic worked. Prometheus still needs more evaluation time for the longer demo rule."
       );
 
+      await refreshObsNow({ silent: true });
       await sleep(LONG_DEMO_WATCH_STEP_MS);
     }
 
@@ -360,6 +383,7 @@
         "Fast demo alert was detected, but the longer demo alert is not visible yet.",
         "The scenario succeeded, but the longer rule still needs more time or lighter thresholds."
       );
+      await refreshObsNow({ silent: true });
     }
   }
 
@@ -422,6 +446,7 @@
               "Scenario hit rate limit.",
               `retry-after=${r.retryAfter || "unknown"}s. Increase RATE_LIMIT or slow down the burst.`
             );
+            await refreshObsNow({ silent: true });
             break;
           }
         }
@@ -440,6 +465,7 @@
               "Scenario hit rate limit.",
               `retry-after=${r.retryAfter || "unknown"}s. Increase RATE_LIMIT or slow down the burst.`
             );
+            await refreshObsNow({ silent: true });
             break;
           }
         }
@@ -452,6 +478,7 @@
       }
 
       if (!scenarioState.stopRequested) {
+        await refreshObsNow({ silent: true });
         const fastFound = await waitForFastAlert();
 
         if (fastFound) {
@@ -464,6 +491,7 @@
             "Scenario finished, but the fast demo alert did not appear in time.",
             "Refresh alerts and check Prometheus evaluation timing or make the scenario burst stronger."
           );
+          await refreshObsNow({ silent: true });
         }
       }
     } finally {
@@ -661,23 +689,25 @@
 
     let alertsAuto = true;
     let logsAuto = true;
-    let logsMode = "buttons";
     let tAlerts = null;
     let tLogs = null;
 
-    async function refreshAlerts() {
+    async function refreshAlerts(opts = {}) {
       if (!alertsOut) return;
       const r = await fetchJson("/_obs/alerts");
       alertsOut.textContent = fmtAlerts(r.json);
-      appendEvent(`OBS alerts refresh -> ${r.ok ? "ok" : "err"} (${r.status})`);
+      if (!opts.silent) appendEvent(`OBS alerts refresh -> ${r.ok ? "ok" : "err"} (${r.status})`);
     }
 
-    async function refreshLogs() {
+    async function refreshLogs(opts = {}) {
       if (!logsOut) return;
-      const r = await fetchJson(`/_obs/logs?mode=${encodeURIComponent(logsMode)}&limit=80`);
+      const r = await fetchJson(`/_obs/logs?mode=${encodeURIComponent(obsState.logsMode)}&limit=80`);
       logsOut.textContent = fmtLogs(r.json);
-      appendEvent(`OBS logs refresh -> ${r.ok ? "ok" : "err"} (${r.status})`);
+      if (!opts.silent) appendEvent(`OBS logs refresh -> ${r.ok ? "ok" : "err"} (${r.status})`);
     }
+
+    obsState.refreshAlerts = refreshAlerts;
+    obsState.refreshLogs = refreshLogs;
 
     function setAutoBtn(btn, on) {
       if (!btn) return;
@@ -686,7 +716,7 @@
     }
 
     function setModeBtns() {
-      if (btnLogsButtons) btnLogsButtons.classList.toggle("primary", logsMode === "buttons");
+      if (btnLogsButtons) btnLogsButtons.classList.toggle("primary", obsState.logsMode === "buttons");
     }
 
     if (btnAlerts) {
@@ -702,7 +732,7 @@
         alertsAuto = !alertsAuto;
         setAutoBtn(btnAlertsAuto, alertsAuto);
         if (tAlerts) clearInterval(tAlerts);
-        tAlerts = alertsAuto ? setInterval(refreshAlerts, ALERTS_AUTO_INTERVAL_MS) : null;
+        tAlerts = alertsAuto ? setInterval(() => refreshAlerts({ silent: true }), ALERTS_AUTO_INTERVAL_MS) : null;
         if (alertsAuto) await refreshAlerts();
       });
     }
@@ -710,7 +740,7 @@
     if (btnLogsButtons) {
       btnLogsButtons.addEventListener("click", async () => {
         flashBtn(btnLogsButtons);
-        logsMode = "buttons";
+        obsState.logsMode = "buttons";
         setModeBtns();
         await refreshLogs();
       });
@@ -729,7 +759,7 @@
         logsAuto = !logsAuto;
         setAutoBtn(btnLogsAuto, logsAuto);
         if (tLogs) clearInterval(tLogs);
-        tLogs = logsAuto ? setInterval(refreshLogs, LOGS_AUTO_INTERVAL_MS) : null;
+        tLogs = logsAuto ? setInterval(() => refreshLogs({ silent: true }), LOGS_AUTO_INTERVAL_MS) : null;
         if (logsAuto) await refreshLogs();
       });
     }
@@ -741,8 +771,8 @@
     refreshAlerts();
     refreshLogs();
 
-    if (alertsAuto) tAlerts = setInterval(refreshAlerts, ALERTS_AUTO_INTERVAL_MS);
-    if (logsAuto) tLogs = setInterval(refreshLogs, LOGS_AUTO_INTERVAL_MS);
+    if (alertsAuto) tAlerts = setInterval(() => refreshAlerts({ silent: true }), ALERTS_AUTO_INTERVAL_MS);
+    if (logsAuto) tLogs = setInterval(() => refreshLogs({ silent: true }), LOGS_AUTO_INTERVAL_MS);
   }
 
   document.addEventListener("DOMContentLoaded", async () => {
