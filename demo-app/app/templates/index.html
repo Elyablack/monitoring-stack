@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ app_name }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260408-2" />
-  <script defer src="/static/app.js?v=20260408-2"></script>
+  <link rel="stylesheet" href="/static/app.css?v=20260408-3" />
+  <script defer src="/static/app.js?v=20260408-3"></script>
   <style>
     .topbar-mainline {
       display: flex;
@@ -37,6 +37,110 @@
       white-space: nowrap;
     }
 
+    .scenario-shell {
+      display: grid;
+      gap: 14px;
+    }
+
+    .scenario-summary-card {
+      padding: 16px;
+      margin: 0;
+      display: grid;
+      gap: 14px;
+    }
+
+    .scenario-head {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .scenario-pill {
+      min-width: 110px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      text-align: center;
+      font-weight: 900;
+      font-family: var(--mono);
+    }
+
+    .scenario-title {
+      font-size: 1.08rem;
+      font-weight: 800;
+      line-height: 1.35;
+      margin-bottom: 8px;
+      font-family: var(--mono);
+    }
+
+    .scenario-subtitle {
+      font-size: 0.98rem;
+      line-height: 1.35;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    .scenario-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .scenario-kpi {
+      padding: 14px;
+    }
+
+    .scenario-kpi-value {
+      font-size: 2rem;
+      font-weight: 900;
+      line-height: 1.1;
+      font-family: var(--mono);
+    }
+
+    .scenario-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: 12px;
+    }
+
+    .scenario-block {
+      padding: 14px;
+    }
+
+    .scenario-settings {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: end;
+    }
+
+    .scenario-settings .input {
+      width: 110px;
+    }
+
+    .scenario-settings .input.input-sm {
+      width: 90px;
+    }
+
+    .obs-top-stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .obs-stat-card {
+      padding: 14px;
+    }
+
+    .obs-stat-value {
+      font-size: 2rem;
+      font-weight: 900;
+      line-height: 1.1;
+      font-family: var(--mono);
+    }
+
     @media (max-width: 1180px) {
       .topbar-mainline {
         flex-wrap: wrap;
@@ -51,6 +155,15 @@
 
       .subtitle-nowrap {
         white-space: normal;
+      }
+    }
+
+    @media (max-width: 980px) {
+      .scenario-head,
+      .scenario-grid,
+      .scenario-kpis,
+      .obs-top-stats {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -115,98 +228,87 @@
         <div class="card">
           <div class="card-title step-title">1. Traffic generator</div>
 
-          <div class="controls">
-            <div class="control-grid">
-              <div>
-                <label for="slow-ms">slow ms</label>
-                <input id="slow-ms" class="input mono" type="number" value="1200" min="0" max="30000" />
-              </div>
-
-              <div class="btn-row" role="group" aria-label="traffic">
-                <button id="btn-slow-demo" class="btn primary" type="button">trigger latency demo</button>
-                <button id="btn-503-demo" class="btn danger" type="button">trigger 5xx demo</button>
-                <button id="btn-combined-demo" class="btn" type="button">trigger combined demo</button>
-                <button id="btn-stop-demo" class="btn" type="button">stop</button>
-              </div>
+          <div class="scenario-shell">
+            <div>
+              <label for="slow-ms">slow ms</label>
+              <input id="slow-ms" class="input mono" type="number" value="1200" min="0" max="30000" />
             </div>
 
-            <div class="card" style="padding: 16px; margin: 0;">
-              <div id="scenario-summary" class="mono" style="display: grid; gap: 14px;">
-                <div style="display: grid; grid-template-columns: 110px 1fr; gap: 14px; align-items: start;">
-                  <div
-                    id="scenario-pill"
-                    style="min-width: 110px; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--border); text-align: center; font-weight: 900;"
-                  >
-                    IDLE
-                  </div>
-
-                  <div>
-                    <div id="scenario-title" style="font-size: 1.08rem; font-weight: 800; line-height: 1.35; margin-bottom: 8px;">
-                      Pick a scenario to generate alert-friendly traffic.
-                    </div>
-                    <div id="scenario-subtitle" style="font-size: 0.98rem; line-height: 1.35; color: var(--muted);">
-                      Fast demo alerts should appear first. Longer demo alerts depend on sustained Prometheus rule windows.
-                    </div>
-                  </div>
+            <div class="card scenario-summary-card">
+              <div class="scenario-head">
+                <div id="scenario-pill" class="scenario-pill">
+                  IDLE
                 </div>
 
-                <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
-                  <div class="card" style="padding: 14px;">
-                    <div class="hint mono">sent</div>
-                    <div id="scenario-sent" style="font-size: 2rem; font-weight: 900; line-height: 1.1;">0</div>
+                <div>
+                  <div id="scenario-title" class="scenario-title">
+                    Pick a scenario to generate alert-friendly traffic.
                   </div>
-                  <div class="card" style="padding: 14px;">
-                    <div class="hint mono">503s</div>
-                    <div id="scenario-errors" style="font-size: 2rem; font-weight: 900; line-height: 1.1;">0</div>
-                  </div>
-                  <div class="card" style="padding: 14px;">
-                    <div class="hint mono">slow hits</div>
-                    <div id="scenario-slow" style="font-size: 2rem; font-weight: 900; line-height: 1.1;">0</div>
-                  </div>
-                  <div class="card" style="padding: 14px;">
-                    <div class="hint mono">alert state</div>
-                    <div id="scenario-alert-state" style="font-size: 1.5rem; font-weight: 900; line-height: 1.1;">idle</div>
+                  <div id="scenario-subtitle" class="scenario-subtitle">
+                    Fast demo alerts should appear first. Longer demo alerts depend on sustained Prometheus rule windows.
                   </div>
                 </div>
+              </div>
 
-                <div style="display: grid; grid-template-columns: 1.25fr 1fr; gap: 12px;">
-                  <div class="card" style="padding: 14px;">
-                    <div class="hint mono" style="margin-bottom: 10px;">scenario</div>
-                    <div class="btn-row">
-                      <button id="btn-503" class="btn danger" type="button">trigger 5xx demo</button>
-                      <button id="btn-slow" class="btn primary" type="button">trigger latency demo</button>
-                      <button id="btn-combined" class="btn" type="button">trigger combined demo</button>
-                      <button id="btn-stop" class="btn" type="button">stop</button>
-                    </div>
-                  </div>
-
-                  <div class="card" style="padding: 14px;">
-                    <div class="hint mono" style="margin-bottom: 10px;">settings</div>
-                    <div class="btn-row">
-                      <div>
-                        <label for="slow-ms">slow ms</label>
-                        <input id="slow-ms-display" class="input mono" type="number" value="1200" min="0" max="30000" style="width: 110px;" />
-                      </div>
-                      <div>
-                        <label for="burst-count">burst count</label>
-                        <input id="burst-count" class="input mono" type="number" value="18" min="1" max="200" style="width: 90px;" />
-                      </div>
-                      <div>
-                        <label for="burst-interval">interval ms</label>
-                        <input id="burst-interval" class="input mono" type="number" value="350" min="50" max="5000" style="width: 90px;" />
-                      </div>
-                    </div>
-                  </div>
+              <div class="scenario-kpis">
+                <div class="card scenario-kpi">
+                  <div class="hint mono">sent</div>
+                  <div id="scenario-sent" class="scenario-kpi-value">0</div>
                 </div>
 
-                <div class="card" style="padding: 14px;">
-                  <div class="hint mono" style="margin-bottom: 10px;">manual actions</div>
+                <div class="card scenario-kpi">
+                  <div class="hint mono">503s</div>
+                  <div id="scenario-errors" class="scenario-kpi-value">0</div>
+                </div>
+
+                <div class="card scenario-kpi">
+                  <div class="hint mono">slow hits</div>
+                  <div id="scenario-slow" class="scenario-kpi-value">0</div>
+                </div>
+
+                <div class="card scenario-kpi">
+                  <div class="hint mono">alert state</div>
+                  <div id="scenario-alert-state" class="scenario-kpi-value" style="font-size: 1.5rem;">idle</div>
+                </div>
+              </div>
+
+              <div class="scenario-grid">
+                <div class="card scenario-block">
+                  <div class="hint mono" style="margin-bottom: 10px;">scenario</div>
                   <div class="btn-row">
-                    <button id="btn-single-slow" class="btn primary" type="button">single /slow</button>
-                    <button id="btn-single-503" class="btn danger" type="button">single /error 503</button>
-                    <button id="btn-metrics" class="btn" type="button">open /metrics</button>
-                    <button id="btn-copy" class="btn" type="button">copy curls</button>
+                    <button id="btn-503" class="btn danger" type="button">trigger 5xx demo</button>
+                    <button id="btn-slow-scenario" class="btn primary" type="button">trigger latency demo</button>
+                    <button id="btn-combined" class="btn" type="button">trigger combined demo</button>
+                    <button id="btn-stop" class="btn" type="button">stop</button>
                   </div>
+                </div>
+
+                <div class="card scenario-block">
+                  <div class="hint mono" style="margin-bottom: 10px;">settings</div>
+                  <div class="scenario-settings">
+                    <div>
+                      <label for="slow-ms-settings">slow ms</label>
+                      <input id="slow-ms-settings" class="input mono" type="number" value="1200" min="0" max="30000" />
+                    </div>
+                    <div>
+                      <label for="burst-count">burst count</label>
+                      <input id="burst-count" class="input mono input-sm" type="number" value="18" min="1" max="200" />
+                    </div>
+                    <div>
+                      <label for="burst-interval">interval ms</label>
+                      <input id="burst-interval" class="input mono input-sm" type="number" value="350" min="50" max="5000" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card scenario-block">
+                <div class="hint mono" style="margin-bottom: 10px;">manual actions</div>
+                <div class="btn-row">
+                  <button id="btn-single-slow" class="btn primary" type="button">single /slow</button>
+                  <button id="btn-single-503" class="btn danger" type="button">single /error 503</button>
+                  <button id="btn-metrics" class="btn" type="button">open /metrics</button>
+                  <button id="btn-copy" class="btn" type="button">copy curls</button>
                 </div>
               </div>
             </div>
@@ -223,16 +325,16 @@
         <div class="card sticky-panel">
           <div class="card-title step-title">3. Observability</div>
 
-          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px;">
-            <div class="card" style="padding: 14px;">
+          <div class="obs-top-stats">
+            <div class="card obs-stat-card">
               <div class="hint mono">alerts</div>
-              <div id="obs-alert-count" style="font-size: 2rem; font-weight: 900; line-height: 1.1;">0</div>
+              <div id="obs-alert-count" class="obs-stat-value">0</div>
               <div class="hint mono" id="obs-alert-meta" style="margin-top: 8px;">active=0 suppressed=0 unprocessed=0</div>
             </div>
 
-            <div class="card" style="padding: 14px;">
+            <div class="card obs-stat-card">
               <div class="hint mono">button logs</div>
-              <div id="obs-log-count" style="font-size: 2rem; font-weight: 900; line-height: 1.1;">0</div>
+              <div id="obs-log-count" class="obs-stat-value">0</div>
               <div class="hint mono" id="obs-log-meta" style="margin-top: 8px;">events={}</div>
             </div>
           </div>

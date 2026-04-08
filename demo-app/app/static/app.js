@@ -1,48 +1,47 @@
 (function () {
   const THEME_KEY = "demoapp_theme";
-  const themes = ["terminal", "light"];
+  const THEMES = ["terminal", "light"];
 
-  const ALERTS_AUTO_INTERVAL_MS = 30000;
-  const LOGS_AUTO_INTERVAL_MS = 30000;
+  const ALERT_NAME_ERROR = "DemoAppButtonError503";
+  const ALERT_NAME_SLOW = "DemoAppButtonSlow";
 
-  const FAST_ALERT_WAIT_MS = 30000;
-  const FAST_ALERT_WAIT_STEP_MS = 2000;
+  const ALERTS_AUTO_INTERVAL_MS = 5000;
+  const LOGS_AUTO_INTERVAL_MS = 5000;
+  const STATUS_REFRESH_INTERVAL_MS = 3000;
+  const SCENARIO_TIMEOUT_MS = 90000;
 
-  const LONG_DEMO_WATCH_MS = 90000;
-  const LONG_DEMO_WATCH_STEP_MS = 3000;
-
-  const scenarioState = {
-    running: false,
-    stopRequested: false,
-    mode: "idle",
-    sent: 0,
-    errors: 0,
-    slow: 0,
-    alertState: "idle",
-    fastAlertNames: [],
-    longAlertNames: [],
-    startedAtMs: null,
-    runId: 0,
-    fastDetectedName: null,
-    fastSeenOnce: false,
-    longSeenOnce: false,
-  };
-
-  const obsState = {
+  const state = {
+    alertsAuto: true,
+    logsAuto: true,
     logsMode: "buttons",
-    refreshAlerts: null,
-    refreshLogs: null,
+    alertsTimer: null,
+    logsTimer: null,
+    scenario: {
+      running: false,
+      cancelled: false,
+      kind: null,
+      startedAtMs: null,
+      finishedAtMs: null,
+      sent: 0,
+      errors: 0,
+      slow: 0,
+      detectedAlerts: new Set(),
+      timeoutTimer: null,
+      phase: "idle",
+    },
+    latestAlertsPayload: null,
+    latestLogsPayload: null,
   };
 
-  function $(sel) {
-    return document.querySelector(sel);
+  function $(selector) {
+    return document.querySelector(selector);
   }
 
   function el(tag, cls, text) {
-    const n = document.createElement(tag);
-    if (cls) n.className = cls;
-    if (text !== undefined) n.textContent = text;
-    return n;
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
   }
 
   function toast(msg) {
@@ -54,33 +53,15 @@
     t.textContent = msg;
     t.classList.add("on");
     clearTimeout(toast._tmr);
-    toast._tmr = setTimeout(() => t.classList.remove("on"), 900);
-  }
-
-  function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  function nowMs() {
-    return Date.now();
-  }
-
-  function parseTsToMs(ts) {
-    if (!ts) return null;
-    const parsed = Date.parse(ts);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-
-  function currentScenarioCutoffMs() {
-    return scenarioState.startedAtMs;
+    toast._tmr = setTimeout(() => t.classList.remove("on"), 1000);
   }
 
   function themeIcon(theme) {
     return theme === "light" ? "☀️" : "🌙";
   }
 
-  function applyTheme(t) {
-    const theme = themes.includes(t) ? t : "terminal";
+  function applyTheme(themeRaw) {
+    const theme = THEMES.includes(themeRaw) ? themeRaw : "terminal";
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem(THEME_KEY, theme);
 
@@ -104,7 +85,7 @@
     btn.type = "button";
     btn.title = "Toggle theme (t)";
     btn.innerHTML = `<span class="theme-icon v" id="pl-theme-icon">🌙</span>`;
-    btn.addEventListener("click", () => toggleTheme());
+    btn.addEventListener("click", toggleTheme);
     host.appendChild(btn);
   }
 
@@ -160,594 +141,46 @@
     const now = new Date();
     const ts = now.toISOString().replace("T", " ").replace("Z", "");
     const cur = pre.textContent.trimEnd();
-    const next = (cur ? cur + "\n" : "") + `[${ts}] ${line}`;
-    const lines = next.split("\n").slice(-180);
-    pre.textContent = lines.join("\n") + "\n";
+    const next = (cur ? `${cur}\n` : "") + `[${ts}] ${line}`;
+    const lines = next.split("\n").slice(-160);
+    pre.textContent = `${lines.join("\n")}\n`;
     pre.scrollTop = pre.scrollHeight;
   }
 
   function curlFor(path) {
-    const base = window.location.origin;
-    return `curl -fsS '${base}${path}'`;
+    return `curl -fsS '${window.location.origin}${path}'`;
   }
 
   async function hit(path, opts = {}) {
     const method = opts.method || "GET";
-    const silent = opts.silent === true;
-
-    if (!silent) appendEvent(`REQUEST ${method} ${path}`);
-
+    appendEvent(`REQUEST ${method} ${path}`);
     try {
       const r = await fetch(path, { method, cache: "no-store" });
       const txt = await r.text();
-
-      if (!silent) appendEvent(`RESPONSE ${r.status} ${txt.trim().slice(0, 250)}`);
-
-      return {
-        ok: r.ok,
-        status: r.status,
-        body: txt,
-        retryAfter: Number(r.headers.get("retry-after") || "0"),
-      };
+      appendEvent(`RESPONSE ${r.status} ${txt.trim().slice(0, 250)}`);
+      return { ok: r.ok, status: r.status, body: txt };
     } catch (e) {
-      if (!silent) appendEvent(`ERROR ${String(e)}`);
-      return { ok: false, status: 0, body: "", retryAfter: 0 };
+      appendEvent(`ERROR ${String(e)}`);
+      return { ok: false, status: 0, body: "" };
     }
   }
 
   async function fetchJson(path) {
+    const r = await fetch(path, { cache: "no-store" });
+    const txt = await r.text();
     try {
-      const r = await fetch(path, { cache: "no-store" });
-      const txt = await r.text();
-      try {
-        return { ok: r.ok, status: r.status, json: JSON.parse(txt) };
-      } catch {
-        return {
-          ok: false,
-          status: r.status,
-          json: { ok: false, error: "bad json", raw: txt.slice(0, 500) },
-        };
-      }
+      return { ok: r.ok, status: r.status, json: JSON.parse(txt) };
     } catch {
-      return { ok: false, status: 0, json: { ok: false, error: "network error" } };
+      return { ok: false, status: r.status, json: { ok: false, error: "bad json", raw: txt.slice(0, 500) } };
     }
-  }
-
-  function ensurePowerlineAndTheme() {
-    let pl = $(".powerline");
-    if (!pl) {
-      const top = $(".topbar") || document.body;
-      pl = el("div", "powerline");
-      top.appendChild(pl);
-    }
-
-    function seg(id, innerHtml) {
-      const s = el("div", "seg");
-      s.id = id;
-      s.innerHTML = innerHtml;
-      return s;
-    }
-
-    if (!$("#pl-seg-app")) {
-      pl.appendChild(seg("pl-seg-app", `<span class="k">app</span><span class="v" id="pl-app">demo-app</span>`));
-      pl.appendChild(seg("pl-seg-env", `<span class="k">env</span><span class="v" id="pl-env">prod</span>`));
-      pl.appendChild(seg("pl-seg-status", `<span class="dot" id="pl-dot"></span><span class="k">status</span><span class="v" id="pl-status">?</span>`));
-      pl.appendChild(seg("pl-seg-time", `<span class="k">time</span><span class="v" id="pl-time">--:--:--</span>`));
-    }
-
-    if (!$("#pl-theme-btn")) ensureThemeButton(pl);
-  }
-
-  function initFromDom() {
-    const appName = document.documentElement.getAttribute("data-app") || $("#app-name")?.textContent || null;
-    const env = document.documentElement.getAttribute("data-env") || null;
-    if (appName && $("#pl-app")) $("#pl-app").textContent = appName;
-    if (env && $("#pl-env")) $("#pl-env").textContent = env;
-  }
-
-  function summarizeAlertMatch(alerts, names) {
-    const wanted = new Set(names || []);
-    const active = (alerts || []).filter((a) => wanted.has(a.alertname));
-    return active.length ? active[0] : null;
-  }
-
-  function scenarioLabels(mode) {
-    if (mode === "5xx") {
-      return {
-        fastName: "DemoAppButtonError503",
-        fastLabel: "fast 5xx demo alert",
-        longName: "DemoAppHigh5xxRate",
-        longLabel: "5xx-rate alert",
-        trafficLabel: "5xx traffic",
-      };
-    }
-
-    if (mode === "latency") {
-      return {
-        fastName: "DemoAppButtonSlow",
-        fastLabel: "fast latency demo alert",
-        longName: "DemoAppHighP95Latency",
-        longLabel: "latency alert",
-        trafficLabel: "slow-request traffic",
-      };
-    }
-
-    return {
-      fastName: "DemoAppButtonError503 / DemoAppButtonSlow",
-      fastLabel: "fast combined demo alert",
-      longName: "DemoAppHigh5xxRate / DemoAppHighP95Latency",
-      longLabel: "combined demo alert",
-      trafficLabel: "combined traffic",
-    };
-  }
-
-  function shortAlertState(value) {
-    if (!value) return "idle";
-    if (value.startsWith("detected-fast:")) return "fast-detected";
-    if (value.startsWith("detected-long:")) return "long-detected";
-    if (value === "fast-expired") return "fast-expired";
-    if (value === "waiting-fast") return "waiting-fast";
-    if (value === "watching-long") return "watching-long";
-    return value;
-  }
-
-  function updateScenarioStatus(level, message, sub) {
-    const pill = $("#demo-level");
-    const messageEl = $("#demo-message");
-    const subEl = $("#demo-sub");
-
-    if (pill) {
-      pill.className = `demo-status-pill ${level}`;
-      pill.textContent = level.toUpperCase();
-    }
-    if (messageEl) messageEl.textContent = message;
-    if (subEl) subEl.textContent = sub || "";
-  }
-
-  function renderScenarioStats() {
-    const sent = $("#stat-sent");
-    const errors = $("#stat-errors");
-    const slow = $("#stat-slow");
-    const alert = $("#stat-alert");
-
-    if (sent) sent.textContent = String(scenarioState.sent);
-    if (errors) errors.textContent = String(scenarioState.errors);
-    if (slow) slow.textContent = String(scenarioState.slow);
-    if (alert) alert.textContent = shortAlertState(scenarioState.alertState);
-  }
-
-  function resetScenarioCounters(mode, fastAlertNames, longAlertNames) {
-    scenarioState.running = true;
-    scenarioState.stopRequested = false;
-    scenarioState.mode = mode;
-    scenarioState.sent = 0;
-    scenarioState.errors = 0;
-    scenarioState.slow = 0;
-    scenarioState.alertState = "sending";
-    scenarioState.fastAlertNames = fastAlertNames || [];
-    scenarioState.longAlertNames = longAlertNames || [];
-    scenarioState.startedAtMs = nowMs();
-    scenarioState.runId += 1;
-    scenarioState.fastDetectedName = null;
-    scenarioState.fastSeenOnce = false;
-    scenarioState.longSeenOnce = false;
-    renderScenarioStats();
-  }
-
-  function stopScenario(opts = {}) {
-    scenarioState.stopRequested = true;
-    scenarioState.running = false;
-    scenarioState.mode = "idle";
-    scenarioState.alertState = "stopped";
-    renderScenarioStats();
-
-    if (!opts.quiet) {
-      updateScenarioStatus("idle", "Scenario stopped.", "You can start another demo scenario.");
-      appendEvent("SCENARIO stopped");
-    }
-  }
-
-  async function ensureScenarioSlot() {
-    if (!scenarioState.running) return;
-    appendEvent("SCENARIO interrupt previous run");
-    stopScenario({ quiet: true });
-    await sleep(50);
-  }
-
-  function filterEntriesForScenario(entries) {
-    const cutoff = currentScenarioCutoffMs();
-    if (!Array.isArray(entries)) return [];
-    if (!cutoff) return entries;
-
-    return entries.filter((entry) => {
-      const tsMs = parseTsToMs(entry.ts);
-      if (!tsMs) return false;
-      return tsMs >= cutoff - 1000;
-    });
-  }
-
-  function summarizeEntries(entries) {
-    const byEvent = {};
-    for (const entry of entries) {
-      const ev = entry?.event || "unknown";
-      byEvent[ev] = (byEvent[ev] || 0) + 1;
-    }
-    return byEvent;
-  }
-
-  async function refreshObsNow(opts = {}) {
-    const refreshAlerts = obsState.refreshAlerts;
-    const refreshLogs = obsState.refreshLogs;
-
-    if (typeof refreshAlerts === "function") {
-      await refreshAlerts({ silent: opts.silent === true });
-    }
-    if (typeof refreshLogs === "function") {
-      await refreshLogs({ silent: opts.silent === true });
-    }
-  }
-
-  async function checkScenarioAlerts() {
-    const r = await fetchJson("/_obs/alerts");
-    if (!r.ok || !r.json?.ok) return null;
-
-    const fastMatch = summarizeAlertMatch(r.json.alerts || [], scenarioState.fastAlertNames);
-    const longMatch = summarizeAlertMatch(r.json.alerts || [], scenarioState.longAlertNames);
-
-    return { fastMatch, longMatch, payload: r.json };
-  }
-
-  async function waitForFastAlert(runId) {
-    const started = Date.now();
-    const labels = scenarioLabels(scenarioState.mode);
-
-    while (
-      !scenarioState.stopRequested &&
-      scenarioState.runId === runId &&
-      Date.now() - started < FAST_ALERT_WAIT_MS
-    ) {
-      const alertCheck = await checkScenarioAlerts();
-
-      if (alertCheck?.fastMatch) {
-        scenarioState.fastSeenOnce = true;
-        scenarioState.fastDetectedName = alertCheck.fastMatch.alertname;
-        scenarioState.alertState = `detected-fast:${alertCheck.fastMatch.alertname}`;
-        renderScenarioStats();
-        updateScenarioStatus(
-          "info",
-          `${labels.fastLabel} detected: ${alertCheck.fastMatch.alertname}`,
-          `${labels.trafficLabel} reached Alertmanager. Now watching for ${labels.longName}.`
-        );
-        appendEvent(`SCENARIO fast demo alert detected -> ${alertCheck.fastMatch.alertname}`);
-        await refreshObsNow({ silent: true });
-        return true;
-      }
-
-      scenarioState.alertState = "waiting-fast";
-      renderScenarioStats();
-      updateScenarioStatus(
-        "info",
-        `Scenario finished. Waiting for ${labels.fastName}.`,
-        `Prometheus and Alertmanager may need a few extra evaluation seconds before ${labels.fastName} becomes visible.`
-      );
-
-      await refreshObsNow({ silent: true });
-      await sleep(FAST_ALERT_WAIT_STEP_MS);
-    }
-
-    return false;
-  }
-
-  async function watchLongDemoWindow(runId) {
-    const started = Date.now();
-    const labels = scenarioLabels(scenarioState.mode);
-
-    while (
-      !scenarioState.stopRequested &&
-      scenarioState.runId === runId &&
-      Date.now() - started < LONG_DEMO_WATCH_MS
-    ) {
-      const alertCheck = await checkScenarioAlerts();
-
-      if (alertCheck?.longMatch) {
-        scenarioState.longSeenOnce = true;
-        scenarioState.alertState = `detected-long:${alertCheck.longMatch.alertname}`;
-        renderScenarioStats();
-        updateScenarioStatus(
-          "ok",
-          `Long demo alert detected: ${alertCheck.longMatch.alertname}`,
-          `The scenario reached ${labels.longName}, not only the fast alert ${scenarioState.fastDetectedName || labels.fastName}.`
-        );
-        appendEvent(`SCENARIO long demo alert detected -> ${alertCheck.longMatch.alertname}`);
-        await refreshObsNow({ silent: true });
-        return;
-      }
-
-      if (alertCheck && !alertCheck.fastMatch && scenarioState.fastSeenOnce) {
-        scenarioState.alertState = "fast-expired";
-        renderScenarioStats();
-        updateScenarioStatus(
-          "warning",
-          `${labels.fastLabel} expired: ${scenarioState.fastDetectedName || labels.fastName}`,
-          `${labels.longName} did not appear in time. The fast demo alert worked, but the longer Prometheus rule did not sustain long enough.`
-        );
-        await refreshObsNow({ silent: true });
-        await sleep(LONG_DEMO_WATCH_STEP_MS);
-        continue;
-      }
-
-      scenarioState.alertState = "watching-long";
-      renderScenarioStats();
-      updateScenarioStatus(
-        "info",
-        `${labels.fastLabel} detected. Waiting for ${labels.longName}.`,
-        `The ${labels.trafficLabel} worked. Prometheus still needs more evaluation time for ${labels.longName}.`
-      );
-
-      await refreshObsNow({ silent: true });
-      await sleep(LONG_DEMO_WATCH_STEP_MS);
-    }
-
-    if (!scenarioState.stopRequested && scenarioState.runId === runId) {
-      scenarioState.alertState = "timeout";
-      renderScenarioStats();
-
-      if (scenarioState.fastSeenOnce) {
-        updateScenarioStatus(
-          "warning",
-          `${labels.fastLabel} was detected, but ${labels.longName} did not appear.`,
-          `The scenario succeeded at the fast-alert level, but the longer Prometheus rule did not hold long enough or needs softer thresholds.`
-        );
-      } else {
-        updateScenarioStatus(
-          "warning",
-          `${labels.longName} is not visible yet.`,
-          `The scenario finished, but neither the sustained rule nor a stable follow-up alert became visible in the selected watch window.`
-        );
-      }
-
-      await refreshObsNow({ silent: true });
-    }
-  }
-
-  async function runBurst(kind) {
-    await ensureScenarioSlot();
-
-    const msInput = $("#slow-ms");
-    const burstInput = $("#burst-count");
-    const intervalInput = $("#burst-interval");
-
-    const slowMs = Math.max(0, Math.min(30000, Number(msInput?.value || "1200") || 1200));
-    const burstCount = Math.max(1, Math.min(240, Number(burstInput?.value || "18") || 18));
-    const intervalMs = Math.max(50, Math.min(10000, Number(intervalInput?.value || "350") || 350));
-
-    if (msInput) msInput.value = String(slowMs);
-    if (burstInput) burstInput.value = String(burstCount);
-    if (intervalInput) intervalInput.value = String(intervalMs);
-
-    const fastAlertNames =
-      kind === "5xx"
-        ? ["DemoAppButtonError503"]
-        : kind === "latency"
-          ? ["DemoAppButtonSlow"]
-          : ["DemoAppButtonError503", "DemoAppButtonSlow"];
-
-    const longAlertNames =
-      kind === "5xx"
-        ? ["DemoAppHigh5xxRate"]
-        : kind === "latency"
-          ? ["DemoAppHighP95Latency"]
-          : ["DemoAppHigh5xxRate", "DemoAppHighP95Latency"];
-
-    resetScenarioCounters(kind, fastAlertNames, longAlertNames);
-    const runId = scenarioState.runId;
-    const labels = scenarioLabels(kind);
-
-    updateScenarioStatus(
-      "running",
-      `Running ${kind} scenario.`,
-      `burst=${burstCount} interval=${intervalMs}ms slow_ms=${slowMs}`
-    );
-    appendEvent(`SCENARIO start kind=${kind} burst=${burstCount} interval_ms=${intervalMs} slow_ms=${slowMs}`);
-
-    try {
-      for (let i = 0; i < burstCount; i += 1) {
-        if (scenarioState.stopRequested || scenarioState.runId !== runId) break;
-
-        if (kind === "5xx" || kind === "both") {
-          const r = await hit("/error?code=503", { silent: true });
-          scenarioState.sent += 1;
-          if (r.status === 503) scenarioState.errors += 1;
-          appendEvent(`SCENARIO 503 #${scenarioState.errors} -> ${r.status}`);
-
-          if (r.status === 429) {
-            scenarioState.alertState = "cooldown";
-            renderScenarioStats();
-            updateScenarioStatus(
-              "warning",
-              "Scenario hit rate limit.",
-              `retry-after=${r.retryAfter || "unknown"}s. Increase RATE_LIMIT or slow down the burst.`
-            );
-            await refreshObsNow({ silent: true });
-            break;
-          }
-        }
-
-        if ((kind === "latency" || kind === "both") && !scenarioState.stopRequested && scenarioState.runId === runId) {
-          const r = await hit(`/slow?ms=${encodeURIComponent(String(slowMs))}`, { silent: true });
-          scenarioState.sent += 1;
-          if (r.status === 200) scenarioState.slow += 1;
-          appendEvent(`SCENARIO slow #${scenarioState.slow} -> ${r.status} (${slowMs}ms)`);
-
-          if (r.status === 429) {
-            scenarioState.alertState = "cooldown";
-            renderScenarioStats();
-            updateScenarioStatus(
-              "warning",
-              "Scenario hit rate limit.",
-              `retry-after=${r.retryAfter || "unknown"}s. Increase RATE_LIMIT or slow down the burst.`
-            );
-            await refreshObsNow({ silent: true });
-            break;
-          }
-        }
-
-        renderScenarioStats();
-
-        if (i < burstCount - 1) {
-          await sleep(intervalMs);
-        }
-      }
-
-      if (!scenarioState.stopRequested && scenarioState.runId === runId) {
-        scenarioState.alertState = "waiting-fast";
-        renderScenarioStats();
-        updateScenarioStatus(
-          "info",
-          `Traffic sent. Waiting for ${labels.fastName}.`,
-          `Current run finished sending requests. Waiting for the fast demo alert to appear.`
-        );
-
-        await refreshObsNow({ silent: true });
-
-        const fastFound = await waitForFastAlert(runId);
-
-        if (fastFound && !scenarioState.stopRequested && scenarioState.runId === runId) {
-          await watchLongDemoWindow(runId);
-        } else if (!fastFound && !scenarioState.stopRequested && scenarioState.runId === runId) {
-          scenarioState.alertState = "timeout";
-          renderScenarioStats();
-          updateScenarioStatus(
-            "warning",
-            `${labels.fastName} did not appear in time.`,
-            `Refresh alerts and check Prometheus evaluation timing or make the scenario burst stronger.`
-          );
-          await refreshObsNow({ silent: true });
-        }
-      }
-    } finally {
-      if (!scenarioState.stopRequested && scenarioState.runId === runId) {
-        scenarioState.running = false;
-        scenarioState.mode = "idle";
-      }
-      appendEvent(`SCENARIO end kind=${kind} sent=${scenarioState.sent} errors=${scenarioState.errors} slow=${scenarioState.slow}`);
-    }
-  }
-
-  function wireQuickActions() {
-    const btn503 = $("#btn-503");
-    const btnSlow = $("#btn-slow");
-    const btnMetrics = $("#btn-metrics");
-    const btnCopy = $("#btn-copy");
-    const btnScenario5xx = $("#btn-scenario-5xx");
-    const btnScenarioLatency = $("#btn-scenario-latency");
-    const btnScenarioBoth = $("#btn-scenario-both");
-    const btnScenarioStop = $("#btn-scenario-stop");
-    const msInput = $("#slow-ms");
-
-    if (btn503) {
-      btn503.addEventListener("click", async () => {
-        flashBtn(btn503);
-        const r = await hit("/error?code=503");
-        if (r.status === 429) toast("rate limited");
-      });
-    }
-
-    if (btnSlow) {
-      btnSlow.addEventListener("click", async () => {
-        flashBtn(btnSlow);
-        const ms = msInput ? Number(msInput.value || "1200") : 1200;
-        const safe = Number.isFinite(ms) ? Math.max(0, Math.min(ms, 30000)) : 1200;
-        if (msInput) msInput.value = String(safe);
-        const r = await hit(`/slow?ms=${encodeURIComponent(String(safe))}`);
-        if (r.status === 429) toast("rate limited");
-      });
-    }
-
-    if (btnScenario5xx) {
-      btnScenario5xx.addEventListener("click", async () => {
-        flashBtn(btnScenario5xx);
-        await runBurst("5xx");
-      });
-    }
-
-    if (btnScenarioLatency) {
-      btnScenarioLatency.addEventListener("click", async () => {
-        flashBtn(btnScenarioLatency);
-        await runBurst("latency");
-      });
-    }
-
-    if (btnScenarioBoth) {
-      btnScenarioBoth.addEventListener("click", async () => {
-        flashBtn(btnScenarioBoth);
-        await runBurst("both");
-      });
-    }
-
-    if (btnScenarioStop) {
-      btnScenarioStop.addEventListener("click", () => {
-        flashBtn(btnScenarioStop);
-        stopScenario();
-      });
-    }
-
-    if (btnMetrics) {
-      btnMetrics.addEventListener("click", async () => {
-        flashBtn(btnMetrics);
-        window.open("/metrics", "_blank", "noopener,noreferrer");
-        appendEvent("OPEN /metrics (new tab)");
-      });
-    }
-
-    if (btnCopy) {
-      btnCopy.addEventListener("click", async () => {
-        flashBtn(btnCopy);
-        const ms = msInput ? Number(msInput.value || "1200") : 1200;
-        const safe = Number.isFinite(ms) ? Math.max(0, Math.min(ms, 30000)) : 1200;
-        const script = [
-          curlFor("/healthz"),
-          curlFor("/metrics"),
-          curlFor(`/slow?ms=${safe}`),
-          curlFor("/error?code=503"),
-          curlFor("/_obs/alerts"),
-          curlFor("/_obs/logs?mode=buttons&limit=20"),
-        ].join("\n") + "\n";
-        await navigator.clipboard.writeText(script);
-        toast("copied curl script");
-      });
-    }
-  }
-
-  function hotkeys() {
-    window.addEventListener("keydown", (e) => {
-      if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
-      if (e.key === "t" || e.key === "T") toggleTheme();
-    });
-  }
-
-  async function refreshStatusLoop() {
-    setTime();
-    setStatus(await pingHealthz());
-    setInterval(async () => {
-      setTime();
-      setStatus(await pingHealthz());
-    }, 3000);
   }
 
   function fmtAlerts(payload) {
     if (!payload || !payload.ok) return `error: ${payload?.error || "unknown"}`;
-
     const alerts = payload.alerts || [];
     const active = alerts.filter((a) => a.status === "active").length;
     const suppressed = alerts.filter((a) => a.status === "suppressed").length;
     const unprocessed = alerts.filter((a) => a.status === "unprocessed").length;
-
-    const summaryCount = $("#alerts-summary-count");
-    const summarySub = $("#alerts-summary-sub");
-
-    if (summaryCount) summaryCount.textContent = String(alerts.length);
-    if (summarySub) summarySub.textContent = `active=${active} suppressed=${suppressed} unprocessed=${unprocessed}`;
 
     const head = `count=${alerts.length} active=${active} suppressed=${suppressed} unprocessed=${unprocessed}`;
     const lines = alerts.slice(0, 80).map((a) => {
@@ -792,64 +225,616 @@
 
   function fmtLogs(payload) {
     if (!payload || !payload.ok) return `error: ${payload?.error || "unknown"}`;
-
-    const allEntries = payload.entries || [];
-    const entries = filterEntriesForScenario(allEntries);
-    const byEvent = summarizeEntries(entries);
-
-    const summaryCount = $("#logs-summary-count");
-    const summarySub = $("#logs-summary-sub");
-
-    if (summaryCount) summaryCount.textContent = String(entries.length);
-    if (summarySub) summarySub.textContent = `events=${JSON.stringify(byEvent)}`;
-
-    const head = `count=${entries.length} events=${JSON.stringify(byEvent)}`;
+    const entries = payload.entries || [];
+    const byEvent = payload.summary?.by_event ? JSON.stringify(payload.summary.by_event) : "{}";
+    const head = `count=${payload.count ?? entries.length} events=${byEvent}`;
     const lines = entries.map(summarizeLogEntry);
     return [head, "", ...lines].join("\n");
   }
 
-  function wireObs() {
-    const alertsOut = $("#alerts-out");
-    const logsOut = $("#logs-out");
+  function setAutoBtn(btn, on) {
+    if (!btn) return;
+    btn.textContent = on ? "auto: on" : "auto: off";
+    btn.classList.toggle("primary", on);
+  }
 
+  function setLogsModeBtns() {
+    const btnButtons = $("#btn-logs-buttons");
+    if (btnButtons) btnButtons.classList.toggle("primary", state.logsMode === "buttons");
+  }
+
+  function updateObsSummary(payloadAlerts, payloadLogs) {
+    const alertCount = $("#obs-alert-count");
+    const alertMeta = $("#obs-alert-meta");
+    const logCount = $("#obs-log-count");
+    const logMeta = $("#obs-log-meta");
+
+    if (payloadAlerts?.ok) {
+      const alerts = payloadAlerts.alerts || [];
+      const active = alerts.filter((a) => a.status === "active").length;
+      const suppressed = alerts.filter((a) => a.status === "suppressed").length;
+      const unprocessed = alerts.filter((a) => a.status === "unprocessed").length;
+
+      if (alertCount) alertCount.textContent = String(alerts.length);
+      if (alertMeta) alertMeta.textContent = `active=${active} suppressed=${suppressed} unprocessed=${unprocessed}`;
+    }
+
+    if (payloadLogs?.ok) {
+      const count = payloadLogs.count ?? 0;
+      const events = payloadLogs.summary?.by_event ? JSON.stringify(payloadLogs.summary.by_event) : "{}";
+      if (logCount) logCount.textContent = String(count);
+      if (logMeta) logMeta.textContent = `events=${events}`;
+    }
+  }
+
+  function getScenarioSettings() {
+    const slowPrimary = $("#slow-ms");
+    const slowSecondary = $("#slow-ms-settings");
+    const burstCountInput = $("#burst-count");
+    const burstIntervalInput = $("#burst-interval");
+
+    const slowMs = Number((slowSecondary?.value || slowPrimary?.value || "1200").trim());
+    const burstCount = Number((burstCountInput?.value || "18").trim());
+    const burstIntervalMs = Number((burstIntervalInput?.value || "350").trim());
+
+    return {
+      slowMs: Number.isFinite(slowMs) ? Math.max(0, Math.min(30000, slowMs)) : 1200,
+      burstCount: Number.isFinite(burstCount) ? Math.max(1, Math.min(200, burstCount)) : 18,
+      burstIntervalMs: Number.isFinite(burstIntervalMs) ? Math.max(50, Math.min(5000, burstIntervalMs)) : 350,
+    };
+  }
+
+  function syncSlowInputs(sourceId) {
+    const a = $("#slow-ms");
+    const b = $("#slow-ms-settings");
+    if (!a || !b) return;
+    if (sourceId === "slow-ms") {
+      b.value = a.value;
+    } else if (sourceId === "slow-ms-settings") {
+      a.value = b.value;
+    }
+  }
+
+  function scenarioExpectations(kind) {
+    if (kind === "5xx") {
+      return { labels: [ALERT_NAME_ERROR], fast: ALERT_NAME_ERROR, slow: null };
+    }
+    if (kind === "slow") {
+      return { labels: [ALERT_NAME_SLOW], fast: ALERT_NAME_SLOW, slow: null };
+    }
+    if (kind === "combined") {
+      return { labels: [ALERT_NAME_ERROR, ALERT_NAME_SLOW], fast: ALERT_NAME_ERROR, slow: ALERT_NAME_SLOW };
+    }
+    return { labels: [], fast: null, slow: null };
+  }
+
+  function resetScenarioState(kind = null) {
+    clearTimeout(state.scenario.timeoutTimer);
+    state.scenario.running = false;
+    state.scenario.cancelled = false;
+    state.scenario.kind = kind;
+    state.scenario.startedAtMs = null;
+    state.scenario.finishedAtMs = null;
+    state.scenario.sent = 0;
+    state.scenario.errors = 0;
+    state.scenario.slow = 0;
+    state.scenario.detectedAlerts = new Set();
+    state.scenario.timeoutTimer = null;
+    state.scenario.phase = "idle";
+  }
+
+  function setScenarioStatusVisual(level, title, subtitle, alertState) {
+    const pill = $("#scenario-pill");
+    const titleNode = $("#scenario-title");
+    const subtitleNode = $("#scenario-subtitle");
+    const alertStateNode = $("#scenario-alert-state");
+
+    if (pill) {
+      pill.textContent = level.toUpperCase();
+      pill.style.borderColor = "var(--border)";
+      pill.style.background = "color-mix(in srgb, var(--panel) 92%, transparent)";
+      pill.style.color = "var(--text)";
+
+      if (level === "ok") {
+        pill.style.borderColor = "color-mix(in srgb, var(--ok) 35%, var(--border))";
+        pill.style.background = "color-mix(in srgb, var(--ok) 10%, var(--panel))";
+      } else if (level === "warning") {
+        pill.style.borderColor = "color-mix(in srgb, var(--warn) 40%, var(--border))";
+        pill.style.background = "color-mix(in srgb, var(--warn) 10%, var(--panel))";
+      } else if (level === "info") {
+        pill.style.borderColor = "color-mix(in srgb, #4c8bf5 40%, var(--border))";
+        pill.style.background = "color-mix(in srgb, #4c8bf5 10%, var(--panel))";
+      } else if (level === "running") {
+        pill.style.borderColor = "color-mix(in srgb, var(--primary) 40%, var(--border))";
+        pill.style.background = "color-mix(in srgb, var(--primary) 10%, var(--panel))";
+      }
+    }
+
+    if (titleNode) titleNode.textContent = title;
+    if (subtitleNode) subtitleNode.textContent = subtitle;
+    if (alertStateNode) alertStateNode.textContent = alertState;
+  }
+
+  function updateScenarioSummary() {
+    const sent = $("#scenario-sent");
+    const errors = $("#scenario-errors");
+    const slow = $("#scenario-slow");
+
+    if (sent) sent.textContent = String(state.scenario.sent);
+    if (errors) errors.textContent = String(state.scenario.errors);
+    if (slow) slow.textContent = String(state.scenario.slow);
+
+    const kind = state.scenario.kind;
+    const detected = Array.from(state.scenario.detectedAlerts);
+    const expectations = scenarioExpectations(kind);
+
+    if (!kind || state.scenario.phase === "idle") {
+      setScenarioStatusVisual(
+        "idle",
+        "Pick a scenario to generate alert-friendly traffic.",
+        "Fast demo alerts should appear first. Longer demo alerts depend on sustained Prometheus rule windows.",
+        "idle",
+      );
+      return;
+    }
+
+    if (state.scenario.phase === "running") {
+      const label = kind === "5xx" ? "5xx" : kind === "slow" ? "latency" : "combined";
+      setScenarioStatusVisual(
+        "running",
+        `Running ${label} demo traffic.`,
+        "Requests are being sent now. Alerts and logs will update automatically.",
+        "running",
+      );
+      return;
+    }
+
+    if (state.scenario.phase === "waiting") {
+      if (kind === "5xx") {
+        setScenarioStatusVisual(
+          "info",
+          "Waiting for demo 5xx alert detection.",
+          "Traffic finished. Alertmanager may need a short evaluation delay before the alert becomes visible.",
+          detected.length > 0 ? `detected:${detected.join(",")}` : "watching",
+        );
+        return;
+      }
+
+      if (kind === "slow") {
+        setScenarioStatusVisual(
+          "info",
+          "Waiting for demo latency alert detection.",
+          "Slow requests were sent. Prometheus may still be evaluating the latency demo alert.",
+          detected.length > 0 ? `detected:${detected.join(",")}` : "watching",
+        );
+        return;
+      }
+
+      setScenarioStatusVisual(
+        "info",
+        "Waiting for combined demo alerts.",
+        "Combined traffic finished. Fast alert should appear first, then the slower latency-oriented demo alert if the rule window is satisfied.",
+        detected.length > 0 ? `detected:${detected.join(",")}` : "watching",
+      );
+      return;
+    }
+
+    if (state.scenario.phase === "detected") {
+      if (kind === "combined") {
+        const hasFast = detected.includes(expectations.fast);
+        const hasSlow = detected.includes(expectations.slow);
+        if (hasFast && hasSlow) {
+          setScenarioStatusVisual(
+            "ok",
+            "Combined demo alerts detected.",
+            "Both demo alerts are visible in Alertmanager.",
+            `detected:${detected.join(",")}`,
+          );
+          return;
+        }
+        if (hasFast) {
+          setScenarioStatusVisual(
+            "info",
+            "Fast demo alert detected. Waiting for the longer demo alert window.",
+            "The traffic worked. Prometheus still needs more evaluation time for the longer demo rule.",
+            `detected:${detected.join(",")}`,
+          );
+          return;
+        }
+      }
+
+      setScenarioStatusVisual(
+        "ok",
+        "Demo alert detected.",
+        "The scenario reached Alertmanager successfully.",
+        `detected:${detected.join(",")}`,
+      );
+      return;
+    }
+
+    if (state.scenario.phase === "timeout") {
+      if (kind === "combined" && detected.includes(expectations.fast) && !detected.includes(expectations.slow)) {
+        setScenarioStatusVisual(
+          "warning",
+          "Fast demo alert was detected, but the longer demo alert is not visible yet.",
+          "The scenario succeeded, but the longer rule still needs more time or lighter thresholds.",
+          "partial-timeout",
+        );
+        return;
+      }
+
+      setScenarioStatusVisual(
+        "warning",
+        "Scenario finished, but no matching demo alert is visible yet.",
+        "Refresh alerts and check Prometheus evaluation timing or rule thresholds.",
+        "timeout",
+      );
+    }
+  }
+
+  function scenarioIsSatisfied(kind, alertsPayload) {
+    if (!alertsPayload?.ok) return false;
+
+    const names = new Set(
+      (alertsPayload.alerts || [])
+        .filter((a) => a.status === "active")
+        .map((a) => String(a.alertname || "").trim())
+        .filter(Boolean),
+    );
+
+    const expectations = scenarioExpectations(kind);
+    expectations.labels.forEach((name) => {
+      if (names.has(name)) state.scenario.detectedAlerts.add(name);
+    });
+
+    if (kind === "combined") {
+      return expectations.labels.every((name) => state.scenario.detectedAlerts.has(name));
+    }
+
+    return expectations.labels.some((name) => state.scenario.detectedAlerts.has(name));
+  }
+
+  function scenarioHasPartialSuccess(kind) {
+    if (kind !== "combined") return false;
+    return state.scenario.detectedAlerts.has(ALERT_NAME_ERROR) || state.scenario.detectedAlerts.has(ALERT_NAME_SLOW);
+  }
+
+  function finishScenarioPhase(kind, phase) {
+    if (state.scenario.kind !== kind) return;
+    state.scenario.running = false;
+    state.scenario.finishedAtMs = Date.now();
+    state.scenario.phase = phase;
+    updateScenarioSummary();
+  }
+
+  async function refreshAlerts() {
+    const alertsOut = $("#alerts-out");
+    const r = await fetchJson("/_obs/alerts");
+    state.latestAlertsPayload = r.json;
+    if (alertsOut) alertsOut.textContent = fmtAlerts(r.json);
+    updateObsSummary(state.latestAlertsPayload, state.latestLogsPayload);
+    appendEvent(`OBS alerts refresh -> ${r.ok ? "ok" : "err"} (${r.status})`);
+
+    if (state.scenario.kind && (state.scenario.phase === "waiting" || state.scenario.phase === "detected")) {
+      const satisfied = scenarioIsSatisfied(state.scenario.kind, r.json);
+      if (satisfied) {
+        clearTimeout(state.scenario.timeoutTimer);
+        state.scenario.phase = "detected";
+        updateScenarioSummary();
+      } else if (scenarioHasPartialSuccess(state.scenario.kind)) {
+        state.scenario.phase = "detected";
+        updateScenarioSummary();
+      }
+    }
+  }
+
+  async function refreshLogs() {
+    const logsOut = $("#logs-out");
+    const r = await fetchJson(`/_obs/logs?mode=${encodeURIComponent(state.logsMode)}&limit=80`);
+    state.latestLogsPayload = r.json;
+    if (logsOut) logsOut.textContent = fmtLogs(r.json);
+    updateObsSummary(state.latestAlertsPayload, state.latestLogsPayload);
+    appendEvent(`OBS logs refresh -> ${r.ok ? "ok" : "err"} (${r.status})`);
+  }
+
+  function startAlertsAutoLoop() {
+    if (state.alertsTimer) clearInterval(state.alertsTimer);
+    state.alertsTimer = state.alertsAuto ? setInterval(refreshAlerts, ALERTS_AUTO_INTERVAL_MS) : null;
+  }
+
+  function startLogsAutoLoop() {
+    if (state.logsTimer) clearInterval(state.logsTimer);
+    state.logsTimer = state.logsAuto ? setInterval(refreshLogs, LOGS_AUTO_INTERVAL_MS) : null;
+  }
+
+  async function runSingle503() {
+    const r = await hit("/error?code=503");
+    if (r.status === 429) toast("rate limited");
+    return r;
+  }
+
+  async function runSingleSlow() {
+    const { slowMs } = getScenarioSettings();
+    const r = await hit(`/slow?ms=${encodeURIComponent(String(slowMs))}`);
+    if (r.status === 429) toast("rate limited");
+    return r;
+  }
+
+  async function delay(ms) {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function setScenarioButtonsDisabled(disabled) {
+    const ids = [
+      "btn-503",
+      "btn-slow-scenario",
+      "btn-combined",
+      "btn-single-slow",
+      "btn-single-503",
+    ];
+    ids.forEach((id) => {
+      const node = document.getElementById(id);
+      if (node) node.disabled = disabled;
+    });
+    const stop = $("#btn-stop");
+    if (stop) stop.disabled = !disabled;
+  }
+
+  async function runScenario(kind) {
+    if (state.scenario.running) {
+      toast("scenario already running");
+      return;
+    }
+
+    const { burstCount, burstIntervalMs } = getScenarioSettings();
+
+    resetScenarioState(kind);
+    state.scenario.running = true;
+    state.scenario.phase = "running";
+    state.scenario.startedAtMs = Date.now();
+    setScenarioButtonsDisabled(true);
+    updateScenarioSummary();
+
+    appendEvent(`SCENARIO start kind=${kind} count=${burstCount} interval_ms=${burstIntervalMs}`);
+
+    try {
+      for (let i = 1; i <= burstCount; i += 1) {
+        if (state.scenario.cancelled) {
+          appendEvent(`SCENARIO cancelled kind=${kind} after=${state.scenario.sent}`);
+          finishScenarioPhase(kind, "idle");
+          return;
+        }
+
+        let r;
+        if (kind === "5xx") {
+          r = await hit("/error?code=503");
+          state.scenario.sent += 1;
+          if (r.status === 503) state.scenario.errors += 1;
+          appendEvent(`SCENARIO 503 #${i} -> ${r.status}`);
+        } else if (kind === "slow") {
+          const { slowMs } = getScenarioSettings();
+          r = await hit(`/slow?ms=${encodeURIComponent(String(slowMs))}`);
+          state.scenario.sent += 1;
+          if (r.ok) state.scenario.slow += 1;
+          appendEvent(`SCENARIO slow #${i} -> ${r.status} (${slowMs}ms)`);
+        } else {
+          const { slowMs } = getScenarioSettings();
+          if (i % 2 === 1) {
+            r = await hit("/error?code=503");
+            state.scenario.sent += 1;
+            if (r.status === 503) state.scenario.errors += 1;
+            appendEvent(`SCENARIO combined error #${i} -> ${r.status}`);
+          } else {
+            r = await hit(`/slow?ms=${encodeURIComponent(String(slowMs))}`);
+            state.scenario.sent += 1;
+            if (r.ok) state.scenario.slow += 1;
+            appendEvent(`SCENARIO combined slow #${i} -> ${r.status} (${slowMs}ms)`);
+          }
+        }
+
+        updateScenarioSummary();
+
+        if (i < burstCount) {
+          await delay(burstIntervalMs);
+        }
+      }
+
+      appendEvent(
+        `SCENARIO end kind=${kind} sent=${state.scenario.sent} errors=${state.scenario.errors} slow=${state.scenario.slow}`,
+      );
+
+      finishScenarioPhase(kind, "waiting");
+
+      state.scenario.timeoutTimer = setTimeout(() => {
+        if (state.scenario.kind !== kind) return;
+        if (state.scenario.phase === "detected" && scenarioHasPartialSuccess(kind)) {
+          state.scenario.phase = "timeout";
+          updateScenarioSummary();
+          return;
+        }
+        if (state.scenario.phase !== "detected") {
+          state.scenario.phase = "timeout";
+          updateScenarioSummary();
+        }
+      }, SCENARIO_TIMEOUT_MS);
+
+      await refreshLogs();
+      await refreshAlerts();
+    } finally {
+      state.scenario.running = false;
+      setScenarioButtonsDisabled(false);
+    }
+  }
+
+  function stopScenario() {
+    if (!state.scenario.kind && !state.scenario.running) {
+      resetScenarioState(null);
+      updateScenarioSummary();
+      return;
+    }
+
+    state.scenario.cancelled = true;
+    clearTimeout(state.scenario.timeoutTimer);
+    if (!state.scenario.running) {
+      resetScenarioState(null);
+      updateScenarioSummary();
+      setScenarioButtonsDisabled(false);
+      appendEvent("SCENARIO stop");
+    }
+  }
+
+  function wireQuickActions() {
+    const btn503 = $("#btn-503");
+    const btnSlowScenario = $("#btn-slow-scenario");
+    const btnCombined = $("#btn-combined");
+    const btnStop = $("#btn-stop");
+
+    const btnSingleSlow = $("#btn-single-slow");
+    const btnSingle503 = $("#btn-single-503");
+    const btnMetrics = $("#btn-metrics");
+    const btnCopy = $("#btn-copy");
+
+    const slowInput = $("#slow-ms");
+    const slowSettingsInput = $("#slow-ms-settings");
+
+    if (slowInput) {
+      slowInput.addEventListener("input", () => syncSlowInputs("slow-ms"));
+      slowInput.addEventListener("change", () => syncSlowInputs("slow-ms"));
+    }
+
+    if (slowSettingsInput) {
+      slowSettingsInput.addEventListener("input", () => syncSlowInputs("slow-ms-settings"));
+      slowSettingsInput.addEventListener("change", () => syncSlowInputs("slow-ms-settings"));
+    }
+
+    if (btn503) {
+      btn503.addEventListener("click", async () => {
+        flashBtn(btn503);
+        await runScenario("5xx");
+      });
+    }
+
+    if (btnSlowScenario) {
+      btnSlowScenario.addEventListener("click", async () => {
+        flashBtn(btnSlowScenario);
+        await runScenario("slow");
+      });
+    }
+
+    if (btnCombined) {
+      btnCombined.addEventListener("click", async () => {
+        flashBtn(btnCombined);
+        await runScenario("combined");
+      });
+    }
+
+    if (btnStop) {
+      btnStop.addEventListener("click", () => {
+        flashBtn(btnStop);
+        stopScenario();
+      });
+    }
+
+    if (btnSingleSlow) {
+      btnSingleSlow.addEventListener("click", async () => {
+        flashBtn(btnSingleSlow);
+        await runSingleSlow();
+        await refreshLogs();
+        await refreshAlerts();
+      });
+    }
+
+    if (btnSingle503) {
+      btnSingle503.addEventListener("click", async () => {
+        flashBtn(btnSingle503);
+        await runSingle503();
+        await refreshLogs();
+        await refreshAlerts();
+      });
+    }
+
+    if (btnMetrics) {
+      btnMetrics.addEventListener("click", () => {
+        flashBtn(btnMetrics);
+        window.open("/metrics", "_blank", "noopener,noreferrer");
+        appendEvent("OPEN /metrics (new tab)");
+      });
+    }
+
+    if (btnCopy) {
+      btnCopy.addEventListener("click", async () => {
+        flashBtn(btnCopy);
+        const { slowMs } = getScenarioSettings();
+        const script = [
+          curlFor("/healthz"),
+          curlFor("/metrics"),
+          curlFor(`/slow?ms=${slowMs}`),
+          curlFor("/error?code=503"),
+          curlFor("/_obs/alerts"),
+          curlFor("/_obs/logs?mode=buttons&limit=20"),
+        ].join("\n") + "\n";
+        await navigator.clipboard.writeText(script);
+        toast("copied curl script");
+      });
+    }
+
+    setScenarioButtonsDisabled(false);
+  }
+
+  function hotkeys() {
+    window.addEventListener("keydown", (e) => {
+      if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+      if (e.key === "t" || e.key === "T") toggleTheme();
+    });
+  }
+
+  function ensurePowerlineAndTheme() {
+    let pl = $(".powerline");
+    if (!pl) {
+      const top = $(".topbar") || document.body;
+      pl = el("div", "powerline");
+      top.appendChild(pl);
+    }
+
+    function seg(id, innerHtml) {
+      const s = el("div", "seg");
+      s.id = id;
+      s.innerHTML = innerHtml;
+      return s;
+    }
+
+    if (!$("#pl-seg-app")) {
+      pl.appendChild(seg("pl-seg-app", `<span class="k">app</span><span class="v" id="pl-app">demo-app</span>`));
+      pl.appendChild(seg("pl-seg-env", `<span class="k">env</span><span class="v" id="pl-env">prod</span>`));
+      pl.appendChild(seg("pl-seg-status", `<span class="dot" id="pl-dot"></span><span class="k">status</span><span class="v" id="pl-status">?</span>`));
+      pl.appendChild(seg("pl-seg-time", `<span class="k">time</span><span class="v" id="pl-time">--:--:--</span>`));
+    }
+
+    if (!$("#pl-theme-btn")) ensureThemeButton(pl);
+  }
+
+  async function refreshStatusLoop() {
+    setTime();
+    setStatus(await pingHealthz());
+    setInterval(async () => {
+      setTime();
+      setStatus(await pingHealthz());
+    }, STATUS_REFRESH_INTERVAL_MS);
+  }
+
+  function initFromDom() {
+    const appName = document.documentElement.getAttribute("data-app") || $("#app-name")?.textContent || null;
+    const env = document.documentElement.getAttribute("data-env") || null;
+    if (appName && $("#pl-app")) $("#pl-app").textContent = appName;
+    if (env && $("#pl-env")) $("#pl-env").textContent = env;
+  }
+
+  function wireObs() {
     const btnAlerts = $("#btn-alerts");
     const btnAlertsAuto = $("#btn-alerts-auto");
-
     const btnLogsButtons = $("#btn-logs-buttons");
     const btnLogs = $("#btn-logs");
     const btnLogsAuto = $("#btn-logs-auto");
-
-    let alertsAuto = true;
-    let logsAuto = true;
-    let tAlerts = null;
-    let tLogs = null;
-
-    async function refreshAlerts(opts = {}) {
-      if (!alertsOut) return;
-      const r = await fetchJson("/_obs/alerts");
-      alertsOut.textContent = fmtAlerts(r.json);
-      if (!opts.silent) appendEvent(`OBS alerts refresh -> ${r.ok ? "ok" : "err"} (${r.status})`);
-    }
-
-    async function refreshLogs(opts = {}) {
-      if (!logsOut) return;
-      const r = await fetchJson(`/_obs/logs?mode=${encodeURIComponent(obsState.logsMode)}&limit=80`);
-      logsOut.textContent = fmtLogs(r.json);
-      if (!opts.silent) appendEvent(`OBS logs refresh -> ${r.ok ? "ok" : "err"} (${r.status})`);
-    }
-
-    obsState.refreshAlerts = refreshAlerts;
-    obsState.refreshLogs = refreshLogs;
-
-    function setAutoBtn(btn, on) {
-      if (!btn) return;
-      btn.textContent = on ? "auto: on" : "auto: off";
-      btn.classList.toggle("primary", on);
-    }
-
-    function setModeBtns() {
-      if (btnLogsButtons) btnLogsButtons.classList.toggle("primary", obsState.logsMode === "buttons");
-    }
 
     if (btnAlerts) {
       btnAlerts.addEventListener("click", async () => {
@@ -861,19 +846,18 @@
     if (btnAlertsAuto) {
       btnAlertsAuto.addEventListener("click", async () => {
         flashBtn(btnAlertsAuto);
-        alertsAuto = !alertsAuto;
-        setAutoBtn(btnAlertsAuto, alertsAuto);
-        if (tAlerts) clearInterval(tAlerts);
-        tAlerts = alertsAuto ? setInterval(() => refreshAlerts({ silent: true }), ALERTS_AUTO_INTERVAL_MS) : null;
-        if (alertsAuto) await refreshAlerts();
+        state.alertsAuto = !state.alertsAuto;
+        setAutoBtn(btnAlertsAuto, state.alertsAuto);
+        startAlertsAutoLoop();
+        if (state.alertsAuto) await refreshAlerts();
       });
     }
 
     if (btnLogsButtons) {
       btnLogsButtons.addEventListener("click", async () => {
         flashBtn(btnLogsButtons);
-        obsState.logsMode = "buttons";
-        setModeBtns();
+        state.logsMode = "buttons";
+        setLogsModeBtns();
         await refreshLogs();
       });
     }
@@ -888,23 +872,19 @@
     if (btnLogsAuto) {
       btnLogsAuto.addEventListener("click", async () => {
         flashBtn(btnLogsAuto);
-        logsAuto = !logsAuto;
-        setAutoBtn(btnLogsAuto, logsAuto);
-        if (tLogs) clearInterval(tLogs);
-        tLogs = logsAuto ? setInterval(() => refreshLogs({ silent: true }), LOGS_AUTO_INTERVAL_MS) : null;
-        if (logsAuto) await refreshLogs();
+        state.logsAuto = !state.logsAuto;
+        setAutoBtn(btnLogsAuto, state.logsAuto);
+        startLogsAutoLoop();
+        if (state.logsAuto) await refreshLogs();
       });
     }
 
-    setModeBtns();
-    setAutoBtn(btnAlertsAuto, alertsAuto);
-    setAutoBtn(btnLogsAuto, logsAuto);
+    setLogsModeBtns();
+    setAutoBtn(btnAlertsAuto, state.alertsAuto);
+    setAutoBtn(btnLogsAuto, state.logsAuto);
 
-    refreshAlerts();
-    refreshLogs();
-
-    if (alertsAuto) tAlerts = setInterval(() => refreshAlerts({ silent: true }), ALERTS_AUTO_INTERVAL_MS);
-    if (logsAuto) tLogs = setInterval(() => refreshLogs({ silent: true }), LOGS_AUTO_INTERVAL_MS);
+    startAlertsAutoLoop();
+    startLogsAutoLoop();
   }
 
   document.addEventListener("DOMContentLoaded", async () => {
@@ -917,15 +897,13 @@
     hotkeys();
     wireQuickActions();
     wireObs();
-    renderScenarioStats();
-
-    updateScenarioStatus(
-      "idle",
-      "Pick a scenario to generate alert-friendly traffic.",
-      "Fast demo alerts should appear first. Longer demo alerts depend on sustained Prometheus rule windows."
-    );
+    resetScenarioState(null);
+    updateScenarioSummary();
 
     await refreshStatusLoop();
+    await refreshAlerts();
+    await refreshLogs();
+
     appendEvent("ready");
   });
 })();
