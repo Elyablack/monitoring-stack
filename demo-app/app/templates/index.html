@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ app_name }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260308-4" />
-  <script defer src="/static/app.js?v=20260308-4"></script>
+  <link rel="stylesheet" href="/static/app.css?v=20260408-2" />
+  <script defer src="/static/app.js?v=20260408-2"></script>
   <style>
     .topbar-mainline {
       display: flex;
@@ -107,16 +107,73 @@
         <div class="card">
           <div class="card-title step-title">1. Traffic generator</div>
 
-          <div class="controls">
-            <div class="control-grid">
-              <div>
-                <label for="slow-ms">slow ms</label>
-                <input id="slow-ms" class="input mono" type="number" value="500" min="0" max="30000" />
+          <div class="demo-shell">
+            <div class="demo-hero">
+              <div id="demo-level" class="demo-status-pill idle">IDLE</div>
+              <div class="demo-copy">
+                <div id="demo-message" class="demo-message">
+                  Pick a scenario to generate alert-friendly traffic.
+                </div>
+                <div id="demo-sub" class="demo-sub">
+                  Scenarios automatically send repeated requests and watch Alertmanager.
+                </div>
+              </div>
+            </div>
+
+            <div class="demo-stats" id="demo-stats">
+              <div class="demo-stat-card">
+                <div class="demo-stat-k">sent</div>
+                <div class="demo-stat-v" id="stat-sent">0</div>
+              </div>
+              <div class="demo-stat-card">
+                <div class="demo-stat-k">503s</div>
+                <div class="demo-stat-v" id="stat-errors">0</div>
+              </div>
+              <div class="demo-stat-card">
+                <div class="demo-stat-k">slow hits</div>
+                <div class="demo-stat-v" id="stat-slow">0</div>
+              </div>
+              <div class="demo-stat-card">
+                <div class="demo-stat-k">alert state</div>
+                <div class="demo-stat-v demo-stat-v-sm" id="stat-alert">waiting</div>
+              </div>
+            </div>
+
+            <div class="demo-config-grid">
+              <div class="demo-config-card">
+                <div class="demo-config-title">scenario</div>
+                <div class="btn-row" role="group" aria-label="scenario">
+                  <button id="btn-scenario-5xx" class="btn danger" type="button">trigger 5xx demo</button>
+                  <button id="btn-scenario-latency" class="btn primary" type="button">trigger latency demo</button>
+                  <button id="btn-scenario-both" class="btn" type="button">trigger combined demo</button>
+                  <button id="btn-scenario-stop" class="btn" type="button">stop</button>
+                </div>
               </div>
 
-              <div class="btn-row" role="group" aria-label="traffic">
-                <button id="btn-slow" class="btn primary" type="button">run /slow</button>
-                <button id="btn-503" class="btn danger" type="button">run /error 503</button>
+              <div class="demo-config-card">
+                <div class="demo-config-title">settings</div>
+                <div class="demo-input-grid">
+                  <div>
+                    <label for="slow-ms">slow ms</label>
+                    <input id="slow-ms" class="input mono" type="number" value="1200" min="0" max="30000" />
+                  </div>
+                  <div>
+                    <label for="burst-count">burst count</label>
+                    <input id="burst-count" class="input mono" type="number" value="18" min="1" max="200" />
+                  </div>
+                  <div>
+                    <label for="burst-interval">interval ms</label>
+                    <input id="burst-interval" class="input mono" type="number" value="350" min="50" max="10000" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="demo-config-card">
+              <div class="demo-config-title">manual actions</div>
+              <div class="btn-row" role="group" aria-label="manual traffic">
+                <button id="btn-slow" class="btn primary" type="button">single /slow</button>
+                <button id="btn-503" class="btn danger" type="button">single /error 503</button>
                 <button id="btn-metrics" class="btn" type="button">open /metrics</button>
                 <button id="btn-copy" class="btn" type="button">copy curls</button>
               </div>
@@ -154,6 +211,19 @@
         <div class="card sticky-panel">
           <div class="card-title step-title">3. Observability</div>
 
+          <div class="obs-summary-grid">
+            <div class="obs-summary-card">
+              <div class="obs-summary-k">alerts</div>
+              <div class="obs-summary-v" id="alerts-summary-count">0</div>
+              <div class="obs-summary-sub" id="alerts-summary-sub">active=0 suppressed=0</div>
+            </div>
+            <div class="obs-summary-card">
+              <div class="obs-summary-k">button logs</div>
+              <div class="obs-summary-v" id="logs-summary-count">0</div>
+              <div class="obs-summary-sub" id="logs-summary-sub">events={}</div>
+            </div>
+          </div>
+
           <div class="obs-grid">
             <div class="obs-card">
               <div class="obs-head">
@@ -177,7 +247,7 @@
               </div>
               <pre id="logs-out" class="pre pre-logs">(not loaded)</pre>
               <div class="hint" style="margin-top: 10px;">
-                Loki shows only button-triggered events (forced_error / forced_slow).
+                Loki shows button-triggered events and scenario traffic from <code>/slow</code> and <code>/error</code>.
               </div>
             </div>
           </div>
