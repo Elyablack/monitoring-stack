@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ page_title }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260408-1" />
-  <script defer src="/static/app.js?v=20260408-1"></script>
+  <link rel="stylesheet" href="/static/app.css?v=20260408-2" />
+  <script defer src="/static/app.js?v=20260408-2"></script>
   <style>
     .db-topbar {
       display: flex;
@@ -65,19 +65,22 @@
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 18px;
-      align-items: start;
+      align-items: stretch;
     }
 
     .db-grid-secondary {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 18px;
-      align-items: start;
+      align-items: stretch;
     }
 
     .db-card {
       min-width: 0;
       overflow: hidden;
+      display: grid;
+      grid-template-rows: auto auto auto 1fr;
+      height: 100%;
     }
 
     .db-card-head {
@@ -167,19 +170,6 @@
       font-size: 0.95rem;
       line-height: 1.45;
       color: var(--text);
-      margin-bottom: 14px;
-    }
-
-    .db-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .db-actions .btn,
-    .db-actions .link {
-      text-decoration: none;
     }
 
     .db-note {
@@ -212,6 +202,10 @@
 
       .db-grid-secondary {
         grid-template-columns: 1fr;
+      }
+
+      .db-card {
+        height: auto;
       }
     }
   </style>
@@ -257,9 +251,9 @@
 
     <div class="db-intro">
       <div class="db-intro-text">
-        Public-safe dashboard index for the monitoring stack. These previews show the main
-        observability surfaces for the demo app, control-plane pipeline, mac agent, application
-        alerting and host alerting. Grafana itself stays private.
+        Public-safe dashboard gallery for the monitoring stack. These are screenshot previews of the
+        main observability surfaces: control-plane orchestration, demo-app behavior, mac agent state,
+        application alerting and host alerting.
       </div>
     </div>
   </header>
@@ -291,12 +285,8 @@
           </div>
 
           <div class="db-desc">
-            Best starting point to understand how alerts move through the control-plane:
-            decisions, queued work, action runs and mac remediation outcomes.
-          </div>
-
-          <div class="db-actions">
-            <a class="btn primary" href="{{ grafana_urls.control_plane }}" target="_blank" rel="noopener noreferrer">open in Grafana</a>
+            Best starting point to understand how alerts move through the control-plane: decisions,
+            queued work, action runs and mac remediation outcomes.
           </div>
         </article>
 
@@ -325,10 +315,6 @@
             Use together with the main demo page. This dashboard shows how manual traffic generation
             changes request rate, error distribution, p95 latency and service health.
           </div>
-
-          <div class="db-actions">
-            <a class="btn primary" href="{{ grafana_urls.demo_app }}" target="_blank" rel="noopener noreferrer">open in Grafana</a>
-          </div>
         </article>
 
         <article class="card db-card">
@@ -355,10 +341,6 @@
           <div class="db-desc">
             Remote mac observability surface for memory pressure work. Shows host state, top memory
             consumers, publishing freshness and operational readiness of the agent loop.
-          </div>
-
-          <div class="db-actions">
-            <a class="btn primary" href="{{ grafana_urls.mac }}" target="_blank" rel="noopener noreferrer">open in Grafana</a>
           </div>
         </article>
       </div>
@@ -390,12 +372,8 @@
           </div>
 
           <div class="db-desc">
-            Focused alert-oriented view for the demo app. Useful when validating alert thresholds
-            or checking whether traffic spikes translate into warning conditions.
-          </div>
-
-          <div class="db-actions">
-            <a class="btn primary" href="{{ grafana_urls.application_alerts }}" target="_blank" rel="noopener noreferrer">open in Grafana</a>
+            Focused alert-oriented view for the demo app. Useful when validating alert thresholds or
+            checking whether traffic spikes translate into warning conditions.
           </div>
         </article>
 
@@ -424,15 +402,11 @@
             Infrastructure-focused dashboard for the admin and vps nodes. Good for reboot detection,
             disk pressure checks and quick host-level health validation.
           </div>
-
-          <div class="db-actions">
-            <a class="btn primary" href="{{ grafana_urls.host_alerts }}" target="_blank" rel="noopener noreferrer">open in Grafana</a>
-          </div>
         </article>
       </div>
 
       <div class="db-note">
-        Screenshots are public-safe previews. Live Grafana views remain private and open in a separate tab.
+        Static previews only. Live Grafana links are intentionally omitted from this public surface.
       </div>
     </section>
   </main>
