@@ -18,21 +18,21 @@
 ![FastAPI](https://img.shields.io/badge/-FastAPI-464646?style=flat&logo=fastapi&logoColor=56C0C0&color=008080)
 ![Telegram](https://img.shields.io/badge/-Telegram-464646?style=flat&logo=telegram&logoColor=56C0C0&color=008080)
 
-Production-style **observability and monitoring stack** built with **Prometheus, Loki, and Grafana**.
+Production-style observability platform built with Prometheus, Loki, Grafana, Alertmanager and FastAPI.
 
-This repository demonstrates a complete observability pipeline including:
+This repository demonstrates a full monitoring workflow:
 
 - metrics collection
 - log aggregation
-- alerting
-- dashboards
+- alert evaluation and routing
+- public-safe dashboard and demo surfaces
 - Telegram alert notifications
-- operational runbooks
+- runbooks for investigation and recovery
 - reverse proxy ingress
-- basic host & edge hardening
-- CI validation and automated dependency updates
+- host and edge hardening
+- CI validation and dependency automation
 
-The stack runs entirely with **Docker Compose**.
+The stack runs with Docker Compose and includes a live demo application used to generate realistic monitoring scenarios.
 
 ---
 
@@ -40,9 +40,29 @@ The stack runs entirely with **Docker Compose**.
 
 Public demo instance:
 
-- https://demo.142.93.143.228.nip.io/
+- `https://demo.142.93.143.228.nip.io/`
 
-The demo exposes endpoints used to trigger monitoring scenarios and alerts.
+Primary demo surfaces:
+
+- `/` — demo app with traffic generation and observability widgets
+- `/control-plane` — read-only control-plane activity view
+- `/dashboards` — curated dashboard preview gallery
+
+The demo is designed to show how telemetry flows from application traffic into metrics, logs, alerts and operational investigation surfaces.
+
+---
+
+## What this project shows
+
+This project is meant to be more than a local monitoring lab.
+
+It demonstrates how to package observability as a usable operational surface:
+
+- generate traffic and errors on demand
+- watch logs and alerts update in near real time
+- view public-safe dashboard previews
+- follow alert investigation paths with runbooks
+- connect observability with a separate alert-driven control-plane
 
 ---
 
@@ -55,28 +75,74 @@ The demo exposes endpoints used to trigger monitoring scenarios and alerts.
 - **Promtail** — log shipping
 - **Grafana** — dashboards and visualization
 - **Caddy** — reverse proxy and HTTPS ingress
-- **Fail2ban** — SSH + HTTP abuse protection
-- **Python / FastAPI** — demo application
+- **Fail2ban** — SSH and HTTP abuse protection
+- **Python / FastAPI** — demo application and public surfaces
 - **Telegram** — alert notifications via `tg-relay`
 - **Linux / Ubuntu** — deployment environment
 
 ---
 
+## Public demo surfaces
+
+### 1. Demo app
+
+The main demo surface provides:
+
+- manual traffic generation
+- 5xx and latency scenarios
+- Alertmanager preview
+- Loki log preview
+- alert-friendly test flows
+
+This page is used to validate that telemetry, alerts and UI feedback stay aligned.
+
+### 2. Control-plane view
+
+A read-only control-plane page exposes:
+
+- recent decisions
+- queued tasks
+- action runs
+- pipeline summary
+- orchestration visibility for alert-driven workflows
+
+This is useful when the monitoring stack is connected to the separate `control-plane` repository.
+
+### 3. Dashboard gallery
+
+The dashboard gallery is a public-safe preview page containing curated dashboard screenshots for:
+
+- control-plane overview
+- demo app observability
+- mac agent state
+- application alerts
+- host alerts
+
+This keeps the public demo useful even when Grafana itself is not directly exposed.
+
+---
+
 ## Architecture
 
-Monitoring architecture including metrics, logs and alerting pipeline.
+Monitoring architecture including metrics, logs and alert flow:
 
 ```
-User → Caddy → demo-app
+User -> Caddy -> demo-app
 
 metrics pipeline
-demo-app → Prometheus → Alertmanager → tg-relay → Telegram
+demo-app -> Prometheus -> Alertmanager -> tg-relay -> Telegram
 
 logs pipeline
-demo-app → Promtail → Loki → Grafana
+demo-app -> Promtail -> Loki -> Grafana
 ```
 
-Full architecture diagram: 
+When connected to the separate control-plane:
+
+```
+Alertmanager -> control-plane -> decision -> task -> run -> remediation / notification
+```
+
+Architecture diagram: 
 
 ```
 docs/images/architecture.png
@@ -84,65 +150,23 @@ docs/images/architecture.png
 
 ---
 
-## Infrastructure Automation
+## Dashboards and investigation surfaces
 
-This monitoring stack is supported by a separate infrastructure automation repository:
+The stack includes multiple investigation entry points:
 
-```text
-https://github.com/Elyablack/infra
-```
+- live demo app for traffic generation
+- dashboard preview gallery for public-safe screenshots
+- Grafana dashboards for full internal exploration
+- runbooks for operator workflow
 
-The infrastructure repository contains:
-
-- Ansible bootstrap playbooks
-- VPS backup automation
-- offsite backup replication
-- restore testing and recovery scripts
-- infrastructure operational documentation
-
-Operational flow:
-
-```
-infra repository
-   │
-   ├── Ansible baseline and hardening
-   ├── automated VPS backups
-   ├── offsite backup copies
-   └── restore procedures
-          │
-          ▼
-monitoring-stack repository
-   │
-   └── observability services and application runtime
-```
-
-This separation keeps infrastructure operations and monitoring stack application code independent while still documenting the full production workflow.
-
----
-
-## Dashboard preview
-
-Grafana dashboards provide visibility into host health, application performance, and backup pipeline status.
-
-Example dashboard showing host metrics collected by **node_exporter**.
-
-![Grafana Dashboard](docs/images/dashboard.png)
-
-Typical host metrics include:
-
-- CPU usage
-- memory utilization
-- disk usage
-- network traffic
-- system load
-
-Additional dashboards are available for:
-
-- **host alert investigation**
-- **application health monitoring**
-- **backup pipeline monitoring**
-
-These dashboards are used together with alert rules and operational runbooks for incident investigation.
+Typical dashboard coverage includes:
+	
+- host health
+- application health
+- backup status
+- latency and saturation
+- alert-oriented views
+- control-plane and remediation activity
 
 ---
 
@@ -154,10 +178,39 @@ These dashboards are used together with alert rules and operational runbooks for
 - Grafana dashboards for metrics and logs
 - Telegram alert delivery through relay service
 - Caddy reverse proxy for external access
-- Fail2ban integration (SSH + HTTP abuse patterns)
+- Fail2ban integration for SSH and HTTP abuse patterns
 - Demo endpoints for alert testing
+- Public-safe dashboard gallery
 - Runbook for incident investigation
-- Separate infrastructure automation repository for bootstrap, backup, and recovery workflows
+- Optional integration with alert-driven control-plane workflows
+
+---
+
+## Related repositories
+
+### control-plane
+
+Alert-driven orchestration engine that consumes selected alerts and turns them into:
+
+- decisions
+- queued tasks
+- action runs
+- chained workflows
+- remediation outcomes
+
+Repository:
+	
+- https://github.com/Elyablack/control-plane
+
+### infra
+
+Supporting infrastructure automation repository used for bootstrap, backup, restore and recovery workflows.
+
+Repository:
+
+- https://github.com/Elyablack/infra
+
+This separation keeps the observability layer, orchestration layer and infrastructure automation layer independent.
 
 ---
 
@@ -315,29 +368,25 @@ docs/runbook.md
 
 ---
 
-## Demo and testing
+## Demo scenarios
 
-Trigger a **5xx error**:
+The demo app supports manual scenarios such as:
 
-```
-https://demo.142.93.143.228.nip.io/error?code=503
-```
+- button-generated 5xx spikes
+- button-generated slow requests
+- combined traffic bursts
+- alert visibility checks
+- control-plane validation flows
 
-Trigger a **slow request**:
+These scenarios are useful for:
 
-```
-https://demo.142.93.143.228.nip.io/slow
-```
-
-These endpoints allow testing the full monitoring pipeline:
-
-1. trigger endpoint
-2. observe metrics in Prometheus
-3. verify alert firing
-4. confirm Telegram notification
+- alert testing
+- dashboard validation
+- incident walkthroughs
+- portfolio demonstrations
 
 ---
-
+   
 ## Logs
 
 Application logs are collected via **Promtail** and stored in **Loki**.
@@ -431,24 +480,6 @@ Creating a tag vX.Y.Z publishes:
 - **Renovate** updates **Docker images** (compose/Dockerfiles) weekly, with auto-merge for patch/digest updates.
 
 ---
-
-## Related Repositories
-
-### Infrastructure automation
-
-```
-https://github.com/Elyablack/infra
-```
-
-Contains:
-
-- Ansible playbooks
-- backup automation
-- offsite replication
-- restore scripts
-- disaster recovery workflow
-
-  ---
   
 ## Future improvements
 
