@@ -1,7 +1,6 @@
 groups:
   - name: node
     rules:
-
       - alert: NodeExporterDown
         expr: up{job="nodes"} == 0
         for: 2m
@@ -79,42 +78,42 @@ groups:
       - alert: DemoAppHigh5xxRate
         expr: |
           (
-            sum(rate(http_requests_total{service="demo-app",status=~"5.."}[2m]))
+            sum(rate(http_requests_total{service="demo-app",status=~"5.."}[45s]))
             /
-            clamp_min(sum(rate(http_requests_total{service="demo-app"}[2m])), 1)
-          ) > 0.05
-        for: 2m
+            clamp_min(sum(rate(http_requests_total{service="demo-app"}[45s])), 1)
+          ) > 0.15
+        for: 45s
         labels:
-          severity: warning
+          severity: demo
         annotations:
           summary: "demo-app high 5xx rate"
-          description: "5xx ratio > 5% for 2m (service=demo-app)."
+          description: "5xx ratio > 15% for 45s (service=demo-app)."
           runbook_url: "runbook:demo-app-5xx"
 
       - alert: DemoAppHighP95Latency
         expr: |
           histogram_quantile(
             0.95,
-            sum by (le) (rate(http_request_duration_seconds_bucket{service="demo-app"}[5m]))
-          ) > 0.5
+            sum by (le) (rate(http_request_duration_seconds_bucket{service="demo-app"}[90s]))
+          ) > 0.8
           and
-          sum(rate(http_requests_total{service="demo-app"}[5m])) > 1
-        for: 5m
+          sum(rate(http_requests_total{service="demo-app"}[90s])) > 0.25
+        for: 90s
         labels:
-          severity: warning
+          severity: demo
         annotations:
           summary: "demo-app p95 latency high"
-          description: "p95 latency > 0.5s for 5m with request rate > 1 req/s (service=demo-app)."
+          description: "p95 latency > 0.8s for 90s with request rate > 0.25 req/s (service=demo-app)."
           runbook_url: "runbook:demo-app-latency"
 
       - alert: DemoAppHighInflight
-        expr: http_inflight_requests{service="demo-app"} > 20
-        for: 2m
+        expr: http_inflight_requests{service="demo-app"} > 10
+        for: 30s
         labels:
-          severity: warning
+          severity: demo
         annotations:
           summary: "demo-app high inflight requests"
-          description: "In-flight requests > 20 for 2m (service=demo-app)."
+          description: "In-flight requests > 10 for 30s (service=demo-app)."
           runbook_url: "runbook:demo-app-inflight"
 
       - alert: DemoAppButtonError503
@@ -126,7 +125,6 @@ groups:
           summary: "demo-app: button-generated 503"
           description: "Someone triggered /error?code=503 in the last 1m."
           runbook_url: "runbook:demo-button-503"
-
 
       - alert: DemoAppButtonSlow
         expr: increase(app_forced_latency_total{service="demo-app"}[1m]) > 0

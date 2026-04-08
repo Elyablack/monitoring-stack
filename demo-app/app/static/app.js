@@ -3,6 +3,8 @@
   const themes = ["terminal", "light"];
   const ALERTS_AUTO_INTERVAL_MS = 30000;
   const LOGS_AUTO_INTERVAL_MS = 30000;
+  const LONG_DEMO_WATCH_MS = 90000;
+  const LONG_DEMO_WATCH_STEP_MS = 3000;
 
   const scenarioState = {
     running: false,
@@ -12,7 +14,8 @@
     errors: 0,
     slow: 0,
     alertState: "waiting",
-    targetAlertNames: [],
+    fastAlertNames: [],
+    longAlertNames: [],
   };
 
   function $(sel) { return document.querySelector(sel); }
@@ -143,10 +146,15 @@
       const r = await fetch(path, { method, cache: "no-store" });
       const txt = await r.text();
       if (!silent) appendEvent(`RESPONSE ${r.status} ${txt.trim().slice(0, 250)}`);
-      return { ok: r.ok, status: r.status, body: txt };
+      return {
+        ok: r.ok,
+        status: r.status,
+        body: txt,
+        retryAfter: Number(r.headers.get("retry-after") || "0"),
+      };
     } catch (e) {
       if (!silent) appendEvent(`ERROR ${String(e)}`);
-      return { ok: false, status: 0, body: "" };
+      return { ok: false, status: 0, body: "", retryAfter: 0 };
     }
   }
 
@@ -198,8 +206,14 @@
   function summarizeAlertMatch(alerts, names) {
     const wanted = new Set(names || []);
     const active = (alerts || []).filter((a) => wanted.has(a.alertname));
-    if (!active.length) return null;
-    return active[0];
+    return active.length ? active[0] : null;
+  }
+
+  function shortAlertState(value) {
+    if (!value) return "waiting";
+    if (value.startsWith("detected-fast:")) return "demo-fast";
+    if (value.startsWith("detected-long:")) return "demo-live";
+    return value;
   }
 
   function updateScenarioStatus(level, message, sub) {
@@ -224,10 +238,10 @@
     if (sent) sent.textContent = String(scenarioState.sent);
     if (errors) errors.textContent = String(scenarioState.errors);
     if (slow) slow.textContent = String(scenarioState.slow);
-    if (alert) alert.textContent = scenarioState.alertState;
+    if (alert) alert.textContent = shortAlertState(scenarioState.alertState);
   }
 
-  function resetScenarioCounters(mode, alertNames) {
+  function resetScenarioCounters(mode, fastAlertNames, longAlertNames) {
     scenarioState.running = true;
     scenarioState.stopRequested = false;
     scenarioState.mode = mode;
@@ -235,7 +249,8 @@
     scenarioState.errors = 0;
     scenarioState.slow = 0;
     scenarioState.alertState = "waiting";
-    scenarioState.targetAlertNames = alertNames || [];
+    scenarioState.fastAlertNames = fastAlertNames || [];
+    scenarioState.longAlertNames = longAlertNames || [];
     renderScenarioStats();
   }
 
@@ -252,8 +267,49 @@
   async function checkScenarioAlerts() {
     const r = await fetchJson("/_obs/alerts");
     if (!r.ok || !r.json?.ok) return null;
-    const match = summarizeAlertMatch(r.json.alerts || [], scenarioState.targetAlertNames);
-    return { match, payload: r.json };
+
+    const fastMatch = summarizeAlertMatch(r.json.alerts || [], scenarioState.fastAlertNames);
+    const longMatch = summarizeAlertMatch(r.json.alerts || [], scenarioState.longAlertNames);
+
+    return { fastMatch, longMatch, payload: r.json };
+  }
+
+  async function watchLongDemoWindow() {
+    const started = Date.now();
+
+    while (!scenarioState.stopRequested && Date.now() - started < LONG_DEMO_WATCH_MS) {
+      const alertCheck = await checkScenarioAlerts();
+      if (alertCheck?.longMatch) {
+        scenarioState.alertState = `detected-long:${alertCheck.longMatch.alertname}`;
+        renderScenarioStats();
+        updateScenarioStatus(
+          "ok",
+          `Longer demo alert detected: ${alertCheck.longMatch.alertname}`,
+          "The scenario reached the longer demo rule window, not only the instant button alert."
+        );
+        appendEvent(`SCENARIO long demo alert detected -> ${alertCheck.longMatch.alertname}`);
+        return;
+      }
+
+      scenarioState.alertState = "watching";
+      renderScenarioStats();
+      updateScenarioStatus(
+        "info",
+        "Fast demo alert detected. Waiting for the longer demo alert window.",
+        "The traffic worked. Prometheus still needs more evaluation time for the longer demo rule."
+      );
+      await sleep(LONG_DEMO_WATCH_STEP_MS);
+    }
+
+    if (!scenarioState.stopRequested) {
+      scenarioState.alertState = "timeout";
+      renderScenarioStats();
+      updateScenarioStatus(
+        "warning",
+        "Fast demo alert was detected, but the longer demo alert is not visible yet.",
+        "The scenario succeeded, but the longer rule still needs more time or lighter thresholds."
+      );
+    }
   }
 
   async function runBurst(kind) {
@@ -267,21 +323,29 @@
     const intervalInput = $("#burst-interval");
 
     const slowMs = Math.max(0, Math.min(30000, Number(msInput?.value || "1200") || 1200));
-    const burstCount = Math.max(1, Math.min(200, Number(burstInput?.value || "18") || 18));
+    const burstCount = Math.max(1, Math.min(240, Number(burstInput?.value || "18") || 18));
     const intervalMs = Math.max(50, Math.min(10000, Number(intervalInput?.value || "350") || 350));
 
     if (msInput) msInput.value = String(slowMs);
     if (burstInput) burstInput.value = String(burstCount);
     if (intervalInput) intervalInput.value = String(intervalMs);
 
-    const alertNames =
+    const fastAlertNames =
       kind === "5xx"
-        ? ["DemoAppHigh5xxRate", "DemoAppButtonError503"]
+        ? ["DemoAppButtonError503"]
         : kind === "latency"
-          ? ["DemoAppHighP95Latency", "DemoAppButtonSlow"]
-          : ["DemoAppHigh5xxRate", "DemoAppHighP95Latency", "DemoAppButtonError503", "DemoAppButtonSlow"];
+          ? ["DemoAppButtonSlow"]
+          : ["DemoAppButtonError503", "DemoAppButtonSlow"];
 
-    resetScenarioCounters(kind, alertNames);
+    const longAlertNames =
+      kind === "5xx"
+        ? ["DemoAppHigh5xxRate"]
+        : kind === "latency"
+          ? ["DemoAppHighP95Latency"]
+          : ["DemoAppHigh5xxRate", "DemoAppHighP95Latency"];
+
+    resetScenarioCounters(kind, fastAlertNames, longAlertNames);
+
     updateScenarioStatus(
       "running",
       `Running ${kind} scenario.`,
@@ -296,32 +360,49 @@
         if (kind === "5xx" || kind === "both") {
           const r = await hit("/error?code=503", { silent: true });
           scenarioState.sent += 1;
-          scenarioState.errors += 1;
+          if (r.status === 503) scenarioState.errors += 1;
           appendEvent(`SCENARIO 503 #${scenarioState.errors} -> ${r.status}`);
+          if (r.status === 429) {
+            scenarioState.alertState = "cooldown";
+            renderScenarioStats();
+            updateScenarioStatus(
+              "warning",
+              "Scenario hit rate limit.",
+              `retry-after=${r.retryAfter || "unknown"}s. Increase RATE_LIMIT or slow down the burst.`
+            );
+            break;
+          }
         }
 
         if ((kind === "latency" || kind === "both") && !scenarioState.stopRequested) {
           const r = await hit(`/slow?ms=${encodeURIComponent(String(slowMs))}`, { silent: true });
           scenarioState.sent += 1;
-          scenarioState.slow += 1;
+          if (r.status === 200) scenarioState.slow += 1;
           appendEvent(`SCENARIO slow #${scenarioState.slow} -> ${r.status} (${slowMs}ms)`);
+          if (r.status === 429) {
+            scenarioState.alertState = "cooldown";
+            renderScenarioStats();
+            updateScenarioStatus(
+              "warning",
+              "Scenario hit rate limit.",
+              `retry-after=${r.retryAfter || "unknown"}s. Increase RATE_LIMIT or slow down the burst.`
+            );
+            break;
+          }
         }
 
         renderScenarioStats();
 
         if (i % 3 === 0 || i === burstCount - 1) {
           const alertCheck = await checkScenarioAlerts();
-          if (alertCheck?.match) {
-            scenarioState.alertState = `detected:${alertCheck.match.alertname}`;
+          if (alertCheck?.fastMatch) {
+            scenarioState.alertState = `detected-fast:${alertCheck.fastMatch.alertname}`;
             renderScenarioStats();
             updateScenarioStatus(
-              "ok",
-              `Alert detected: ${alertCheck.match.alertname}`,
-              "Traffic generation succeeded and Alertmanager shows the matching alert."
+              "info",
+              `Fast demo alert detected: ${alertCheck.fastMatch.alertname}`,
+              "Traffic reached Alertmanager. Now waiting for the longer demo rule window."
             );
-          } else {
-            scenarioState.alertState = "warming";
-            renderScenarioStats();
           }
         }
 
@@ -330,23 +411,26 @@
         }
       }
 
-      const finalAlertCheck = await checkScenarioAlerts();
-      if (finalAlertCheck?.match) {
-        scenarioState.alertState = `detected:${finalAlertCheck.match.alertname}`;
-        renderScenarioStats();
-        updateScenarioStatus(
-          "ok",
-          `Alert detected: ${finalAlertCheck.match.alertname}`,
-          "The demo scenario reached Alertmanager successfully."
-        );
-      } else if (!scenarioState.stopRequested) {
-        scenarioState.alertState = "waiting";
-        renderScenarioStats();
-        updateScenarioStatus(
-          "warning",
-          "Scenario finished, but the target alert is not visible yet.",
-          "This may be due to rule timing, cooldown, or evaluation delay. Try refresh alerts and wait a little."
-        );
+      if (!scenarioState.stopRequested) {
+        const finalAlertCheck = await checkScenarioAlerts();
+        if (finalAlertCheck?.fastMatch) {
+          scenarioState.alertState = `detected-fast:${finalAlertCheck.fastMatch.alertname}`;
+          renderScenarioStats();
+          updateScenarioStatus(
+            "info",
+            `Fast demo alert detected: ${finalAlertCheck.fastMatch.alertname}`,
+            "The instant demo rule fired. Waiting for the longer demo alert now."
+          );
+          await watchLongDemoWindow();
+        } else {
+          scenarioState.alertState = "waiting";
+          renderScenarioStats();
+          updateScenarioStatus(
+            "warning",
+            "Scenario finished, but even the fast demo alert is not visible yet.",
+            "Refresh alerts and check Prometheus evaluation timing."
+          );
+        }
       }
     } finally {
       if (!scenarioState.stopRequested) {
@@ -634,7 +718,11 @@
     wireQuickActions();
     wireObs();
     renderScenarioStats();
-    updateScenarioStatus("idle", "Pick a scenario to generate alert-friendly traffic.", "Scenarios automatically send repeated requests and watch Alertmanager.");
+    updateScenarioStatus(
+      "idle",
+      "Pick a scenario to generate alert-friendly traffic.",
+      "Fast demo alerts should appear first. Longer demo alerts need a wider Prometheus window."
+    );
     await refreshStatusLoop();
 
     appendEvent("ready");
