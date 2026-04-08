@@ -76,6 +76,8 @@ class Settings:
     control_plane_enabled: bool
     action_runner_url: str
 
+    grafana_public_url: str
+
     @staticmethod
     def load() -> "Settings":
         app_name = _env_str("APP_NAME", "demo-app")
@@ -98,6 +100,11 @@ class Settings:
         control_plane_enabled = _env_bool("CONTROL_PLANE_ENABLED", True)
         action_runner_url = _env_str("ACTION_RUNNER_URL", "http://172.19.0.1:8088").rstrip("/")
 
+        grafana_public_url = _env_str(
+            "GRAFANA_PUBLIC_URL",
+            "https://grafana.142.93.143.228.nip.io",
+        ).rstrip("/")
+
         return Settings(
             app_name=app_name,
             env=env,
@@ -113,4 +120,5 @@ class Settings:
             ready_urls=ready_urls,
             control_plane_enabled=control_plane_enabled,
             action_runner_url=action_runner_url,
+            grafana_public_url=grafana_public_url,
         )
