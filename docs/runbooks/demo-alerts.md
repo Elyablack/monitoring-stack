@@ -377,14 +377,14 @@ They are intentionally routed to the **blackhole receiver**.
 
 ## Related alerts
 
-The following longer-running warning alerts are related to demo traffic but documented elsewhere:
+The following longer-running warning alerts are related to demo traffic but are documented separately:
 
-- DemoAppHigh5xxRate
-- DemoAppHighP95Latency
+- [DemoAppHigh5xxRate](application-alerts.md#demoapphigh5xxrate)
+- [DemoAppHighP95Latency](application-alerts.md#demoapphighp95latency)
 
-See:
+See also:
 
-- application-alerts.md
+- [Application alerts](application-alerts.md)
 
 ---
 
