@@ -53,7 +53,7 @@ This runbook does **not** cover fast demo-only alerts such as:
 
 Those are documented separately in:
 
-- [Demo alerts](runbooks/demo-alerts.md)
+- [Demo alerts](demo-alerts.md)
 
 However, demo scenarios may still contribute to the application signals described here if traffic volume and evaluation windows are sufficient.
 
@@ -356,4 +356,4 @@ This means:
 
 For fast demo alert handling, use:
 
-- [Demo alerts](runbooks/demo-alerts.md)
+- [Demo alerts](demo-alerts.md)
