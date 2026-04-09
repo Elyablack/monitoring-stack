@@ -32,7 +32,7 @@ This repository demonstrates a full monitoring workflow:
 - host and edge hardening
 - CI validation and dependency automation
 
-The stack runs with Docker Compose and includes a live demo application used to generate realistic monitoring scenarios.
+The stack runs with Docker Compose and includes a live demo application used to generate realistic monitoring and alert-validation scenarios.
 
 ---
 
@@ -44,9 +44,9 @@ Public demo instance:
 
 Primary demo surfaces:
 
-- `/` — demo app with traffic generation and observability widgets
-- `/control-plane` — read-only control-plane activity view
-- `/dashboards` — curated dashboard preview gallery
+- `/` — demo app with traffic generation, scenario controls, alert preview, and log preview
+- `/control-plane` — read-only control-plane activity view for alert-driven workflows
+- `/dashboards` — curated public-safe dashboard preview gallery
 
 The demo is designed to show how telemetry flows from application traffic into metrics, logs, alerts and operational investigation surfaces.
 
@@ -89,10 +89,11 @@ It demonstrates how to package observability as a usable operational surface:
 The main demo surface provides:
 
 - manual traffic generation
+- fast demo alert scenarios
 - 5xx and latency scenarios
 - Alertmanager preview
-- Loki log preview
-- alert-friendly test flows
+- Loki button-log preview
+- alert-friendly validation flows
 
 This page is used to validate that telemetry, alerts and UI feedback stay aligned.
 
@@ -142,11 +143,9 @@ When connected to the separate control-plane:
 Alertmanager -> control-plane -> decision -> task -> run -> remediation / notification
 ```
 
-Architecture diagram: 
+Architecture diagram:
 
-```
-docs/images/architecture.png
-```
+- [`docs/architecture.png`](docs/architecture.png)
 
 ---
 
@@ -199,8 +198,8 @@ Alert-driven orchestration engine that consumes selected alerts and turns them i
 - remediation outcomes
 
 Repository:
-	
-- https://github.com/Elyablack/control-plane
+
+- [Elyablack/control-plane](https://github.com/Elyablack/control-plane)
 
 ### infra
 
@@ -208,7 +207,7 @@ Supporting infrastructure automation repository used for bootstrap, backup, rest
 
 Repository:
 
-- https://github.com/Elyablack/infra
+- [Elyablack/infra](https://github.com/Elyablack/infra)
 
 This separation keeps the observability layer, orchestration layer and infrastructure automation layer independent.
 
@@ -256,6 +255,18 @@ scripts/monitoring-health.sh
 
 ---
 
+## Runbooks
+
+Investigation procedures are documented in:
+
+- [`docs/runbook.md`](docs/runbook.md)
+- [`docs/runbooks/host-alerts.md`](docs/runbooks/host-alerts.md)
+- [`docs/runbooks/application-alerts.md`](docs/runbooks/application-alerts.md)
+- [`docs/runbooks/backup-alerts.md`](docs/runbooks/backup-alerts.md)
+- [`docs/runbooks/demo-alerts.md`](docs/runbooks/demo-alerts.md)
+
+---
+
 ## Operations
 
 ### Check container status
@@ -300,11 +311,12 @@ curl http://127.0.0.1:9093/-/ready
 
 | Service | URL |
 |--------|------|
+| Demo app | https://demo.142.93.143.228.nip.io |
 | Grafana | http://localhost:3000 |
 | Prometheus | http://localhost:9090 |
 | Alertmanager | http://localhost:9093 |
 
-If deployed with **Caddy**, Grafana may be exposed via HTTPS.
+If deployed with **Caddy**, Grafana and demo surfaces may also be exposed via HTTPS.
 
 ---
 
@@ -315,15 +327,14 @@ If deployed with **Caddy**, Grafana may be exposed via HTTPS.
 ├── docker-compose.yml
 ├── Makefile
 ├── renovate.json
-├── .gitignore
-├── .yamllint.yml
 ├── README.md
 ├── docs/
 │   ├── runbook.md
 │   ├── architecture.png
-│   └── dashboard.png
+│   ├── images/
+│   └── runbooks/
 ├── scripts/
-│   └── monitor
+│   └── monitoring-health.sh
 ├── prometheus/
 │   ├── prometheus.yml
 │   └── alerts.yml
@@ -333,15 +344,11 @@ If deployed with **Caddy**, Grafana may be exposed via HTTPS.
 │   └── loki.yml
 ├── promtail/
 │   └── promtail.yml
-├── grafana/
-├── data/
-├── loki-data/
-├── alertmanager-data/
-├── promtail-positions/
 ├── caddy/
 ├── fail2ban/
 ├── demo-app/
-└── tg-relay/
+├── tg-relay/
+└── grafana/
 ```
 
 ---
@@ -355,26 +362,29 @@ Implemented alert rules include:
 - HostMemoryPressure
 - HostHighCpuLoad
 - HostRebootDetected
+- BackupMissing
 - DemoAppDown
 - DemoAppHigh5xxRate
 - DemoAppHighP95Latency
 - DemoAppHighInflight
+- DemoAppButtonError503
+- DemoAppButtonSlow
 
 Alert investigation steps are documented in:
 
-```
-docs/runbook.md
-```
+- [`docs/runbook.md`](docs/runbook.md)
 
 ---
 
 ## Demo scenarios
 
-The demo app supports manual scenarios such as:
+The demo app supports manual validation scenarios such as:
 
-- button-generated 5xx spikes
-- button-generated slow requests
-- combined traffic bursts
+- single 503 error generation
+- single slow request generation
+- burst 5xx demo scenarios
+- burst latency demo scenarios
+- combined traffic scenarios
 - alert visibility checks
 - control-plane validation flows
 
@@ -383,6 +393,7 @@ These scenarios are useful for:
 - alert testing
 - dashboard validation
 - incident walkthroughs
+- public demo validation
 - portfolio demonstrations
 
 ---
@@ -390,6 +401,8 @@ These scenarios are useful for:
 ## Logs
 
 Application logs are collected via **Promtail** and stored in **Loki**.
+
+The demo surface also exposes a public-safe log preview for button-generated scenarios.
 
 Example LogQL:
 
@@ -481,7 +494,7 @@ Creating a tag vX.Y.Z publishes:
 
 ---
   
-## Future improvements
+## Future directions
 
 ### Agentic operations
 
