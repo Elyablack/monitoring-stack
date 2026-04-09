@@ -53,7 +53,7 @@ This runbook does **not** cover fast demo-only alerts such as:
 
 Those are documented separately in:
 
-- `demo-alerts.md`
+- [Demo alerts](runbooks/demo-alerts.md)
 
 However, demo scenarios may still contribute to the application signals described here if traffic volume and evaluation windows are sufficient.
 
@@ -344,10 +344,10 @@ The demo UI can intentionally generate traffic that affects these alerts.
 
 Typical relationship:
 
-- DemoAppButtonError503 is a fast demo alert
-- DemoAppHigh5xxRate is a longer warning alert
-- DemoAppButtonSlow is a fast demo alert
-- DemoAppHighP95Latency is a longer warning alert
+- [`DemoAppButtonError503`](demo-alerts.md#demoappbuttonerror503) is a fast demo alert
+- `DemoAppHigh5xxRate` is a longer warning alert
+- [`DemoAppButtonSlow`](demo-alerts.md#demoappbuttonslow) is a fast demo alert
+- `DemoAppHighP95Latency` is a longer warning alert
 
 This means:
 - fast demo alerts may appear first
@@ -356,4 +356,4 @@ This means:
 
 For fast demo alert handling, use:
 
-- demo-alerts.md
+- [Demo alerts](runbooks/demo-alerts.md)
