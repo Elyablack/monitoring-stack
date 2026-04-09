@@ -11,7 +11,7 @@ This dashboard provides visibility into the health of the backup pipeline.
 The dashboard includes the following panels:
 
 - **Last backup** — timestamp of the most recent successful backup
-- **Backup status** — success/failure state of the last backup
+- **Backup status** — success or failure state of the last backup
 - **Backup age** — time elapsed since the last successful backup
 
 These panels allow operators to quickly verify whether backups are running correctly and how long ago the last successful backup occurred.
@@ -29,6 +29,17 @@ The backup pipeline consists of several stages:
 5. publishing backup success metric to the node exporter textfile collector
 
 The alert **BackupMissing** fires when the metric `backup_last_success_unixtime` indicates that the last successful backup is older than the expected threshold.
+
+If control-plane integration is enabled, this alert may also trigger an orchestration chain such as:
+
+- create backup
+- verify backup artifact
+- enqueue notification step
+
+This means backup investigation may require checking both:
+
+- the backup metric path
+- the control-plane execution path
 
 ---
 
@@ -58,17 +69,18 @@ Possible causes:
 - rsync download to Mac failed
 - offsite replication to `admin` or `lab` failed
 - backup success metric was not written to the node exporter textfile collector
+- control-plane backup chain failed or stopped mid-execution
 
 ---
 
-### Investigation
+## Investigation
 
 ### Check backup metric in Prometheus
 
-```bash
+```
 curl -s http://127.0.0.1:9090/api/v1/query \
   --data-urlencode 'query=backup_last_success_unixtime'
-````
+```
 
 Check whether the metric exists on the VPS node exporter endpoint:
 
@@ -88,6 +100,8 @@ Expected output:
 backup_last_success_unixtime <unix_timestamp>
 backup_last_success 1
 ```
+
+If the metric is missing or stale, continue with pipeline investigation.
 
 ---
 
@@ -198,21 +212,58 @@ Test restore safely:
 
 ---
 
-### Recovery
+### Check control-plane execution path
+
+If this environment uses control-plane for backup handling, verify whether the alert created orchestration activity.
+
+Check summary:
+
+```
+curl -fsS http://127.0.0.1:8081/api/control-plane/summary?window=24h | jq
+```
+
+Check recent decisions:
+
+```
+curl -fsS http://127.0.0.1:8081/api/control-plane/decisions?window=24h&limit=20 | jq
+```
+
+Check recent tasks:
+
+```
+curl -fsS http://127.0.0.1:8081/api/control-plane/tasks?window=24h&limit=20 | jq
+```
+
+Check recent runs:
+
+```
+curl -fsS http://127.0.0.1:8081/api/control-plane/runs?window=24h&limit=20 | jq
+```
+
+What to confirm:
+
+- BackupMissing produced a decision
+- decision type is expected, for example execute_chain
+- a chain task was created
+- run_backup completed
+- verify_backup completed
+- notification step completed or queued as expected
+
+If control-plane shows a failed or partial pipeline, inspect the relevant task and run details before retrying manually.
+
+---
+
+## Recovery
 
 If the backup pipeline failed:
-
-1. run the backup pipeline manually
-    
-2. confirm a new archive exists on VPS
-    
-3. confirm the archive exists on Mac
-    
-4. confirm offsite copies exist on admin and lab
-    
-5. confirm backup.prom was updated on VPS
-    
-6. confirm Prometheus now reports a fresh backup_last_success_unixtime
+	
+1.	run the backup pipeline manually
+2.	confirm a new archive exists on VPS
+3.	confirm the archive exists on Mac
+4.	confirm offsite copies exist on admin and lab
+5.	confirm backup.prom was updated on VPS
+6.	confirm Prometheus now reports a fresh backup_last_success_unixtime
+7.	if control-plane is enabled, confirm the backup workflow is now reflected as healthy in the pipeline view
 
 Manual recovery command:
 
@@ -220,15 +271,34 @@ Manual recovery command:
 /Users/elvira/infra/scripts/run_backup.sh
 ```
 
+If control-plane orchestration failed but the underlying backup path is healthy, resolve the backup issue first and then separately investigate orchestration failure.
+
 ---
 
-### Resolution criteria
+## Resolution criteria
 
 The incident is resolved when:
 
-- `backup_last_success_unixtime` exists in Prometheus
-- `time() - backup_last_success_unixtime` is below alert threshold
+- backup_last_success_unixtime exists in Prometheus
+- time() - backup_last_success_unixtime is below the alert threshold
 - a recent archive exists on VPS
 - a recent archive exists on Mac
 - offsite copies exist on admin and lab
 - checksum verification succeeds
+
+If control-plane is enabled, also confirm:
+
+- the alert no longer produces failing backup workflow activity
+- recent backup-related decisions, tasks, and runs look healthy
+
+---
+
+## Notes
+
+This runbook covers both:
+
+- backup freshness as observed through Prometheus metrics
+- backup execution visibility when connected to control-plane
+
+Use the metric path to confirm backup state.
+Use the control-plane path to confirm orchestration state.
