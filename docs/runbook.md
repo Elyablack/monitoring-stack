@@ -204,10 +204,10 @@ Alert investigation procedures are split by category.
 
 Detailed procedures are located in dedicated runbooks:
 
-- Host alerts → runbooks/host-alerts.md
-- Application alerts → runbooks/application-alerts.md
-- Backup alerts → runbooks/backup-alerts.md
-- Demo alerts → runbooks/demo-alerts.md
+- [Host alerts](runbooks/host-alerts.md)
+- [Application alerts](runbooks/application-alerts.md)
+- [Backup alerts](runbooks/backup-alerts.md)
+- [Demo alerts](runbooks/demo-alerts.md)
 
 Typical categories in this stack include:
 
