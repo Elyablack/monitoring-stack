@@ -187,13 +187,13 @@ When an alert fires quickly check:
   - immediate investigation required
 - **warning**
   - degradation risk
-	- investigate soon
+  - investigate soon
 - **info**
   - informational
-	- monitor only
+  - monitor only
 - **demo**
   - demo-only scenario
-	- useful for validation and testing
+  - useful for validation and testing
   - may be intentionally routed differently from production-facing alerts
 
 ---
