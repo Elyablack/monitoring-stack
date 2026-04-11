@@ -212,60 +212,67 @@ jobs:
     steps:
       - name: Notify telegram
         shell: bash
+        env:
+          DEPLOY_STATUS: ${{ needs.deploy.result }}
+          DEPLOY_MODE: ${{ needs.deploy.outputs.mode }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          FULL_SHA: ${{ github.sha }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          REPO_NAME: ${{ github.repository }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
         run: |
           set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.request
 
-          status="${{ needs.deploy.result }}"
-          mode="${{ needs.deploy.outputs.mode }}"
-          branch="${{ github.ref_name }}"
-          sha="${{ github.sha }}"
-          shortsha="${sha::7}"
+          status = os.environ["DEPLOY_STATUS"]
+          mode = os.environ.get("DEPLOY_MODE", "unknown")
+          branch = os.environ["BRANCH_NAME"]
+          full_sha = os.environ["FULL_SHA"]
+          shortsha = full_sha[:7]
+          workflow = os.environ["WORKFLOW_NAME"]
+          repo = os.environ["REPO_NAME"]
+          chat_id = os.environ["TG_CHAT_ID"]
+          token = os.environ["TG_BOT_TOKEN"]
 
-          case "$status" in
-            success) status_label="OK" ;;
-            failure) status_label="FAILED" ;;
-            cancelled) status_label="CANCELLED" ;;
-            skipped) status_label="SKIPPED" ;;
-            *) status_label="$(printf '%s' "$status" | tr '[:lower:]' '[:upper:]')" ;;
-          esac
+          status_map = {
+              "success": "OK",
+              "failure": "FAILED",
+              "cancelled": "CANCELLED",
+              "skipped": "SKIPPED",
+          }
+          status_label = status_map.get(status, status.upper())
 
-          text="$(cat <<EOF
-[DEPLOY][${status_label}] tg-relay
+          text = "\n".join([
+              f"[DEPLOY][{status_label}] tg-relay",
+              "",
+              "service: tg-relay",
+              f"mode: {mode}",
+              f"branch: {branch}",
+              f"sha: {shortsha}",
+              f"workflow: {workflow}",
+              f"repo: {repo}",
+          ])
 
-service: tg-relay
-mode: ${mode}
-branch: ${branch}
-sha: ${shortsha}
-workflow: ${{ github.workflow }}
-repo: ${{ github.repository }}
-EOF
-          )"
+          url = f"https://api.telegram.org/bot{token}/sendMessage"
+          payload = json.dumps(
+              {
+                  "chat_id": chat_id,
+                  "text": text,
+                  "disable_web_page_preview": True,
+              }
+          ).encode("utf-8")
 
-          python3 - <<'PY' "$text" "${{ secrets.TG_CHAT_ID }}" "${{ secrets.TG_BOT_TOKEN }}"
-import json
-import sys
-import urllib.request
+          req = urllib.request.Request(
+              url,
+              data=payload,
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
 
-text = sys.argv[1]
-chat_id = sys.argv[2]
-token = sys.argv[3]
-
-url = f"https://api.telegram.org/bot{token}/sendMessage"
-payload = json.dumps(
-    {
-        "chat_id": chat_id,
-        "text": text,
-        "disable_web_page_preview": True,
-    }
-).encode("utf-8")
-
-req = urllib.request.Request(
-    url,
-    data=payload,
-    headers={"Content-Type": "application/json"},
-    method="POST",
-)
-
-with urllib.request.urlopen(req, timeout=10) as resp:
-    print(resp.read().decode("utf-8", errors="replace"))
-PY
+          with urllib.request.urlopen(req, timeout=10) as resp:
+              print(resp.read().decode("utf-8", errors="replace"))
+          PY
