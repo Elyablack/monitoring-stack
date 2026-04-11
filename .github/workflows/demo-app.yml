@@ -213,9 +213,59 @@ jobs:
       - name: Notify telegram
         shell: bash
         run: |
+          set -euo pipefail
+
           status="${{ needs.deploy.result }}"
           mode="${{ needs.deploy.outputs.mode }}"
-          text="monitoring-stack: demo-app deploy ${status} mode=${mode} branch=${{ github.ref_name }} sha=${{ github.sha }}"
-          curl -fsS -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendMessage" \
-            -H "Content-Type: application/json" \
-            -d "{\"chat_id\":\"${{ secrets.TG_CHAT_ID }}\",\"text\":\"$text\",\"disable_web_page_preview\":true}"
+          branch="${{ github.ref_name }}"
+          sha="${{ github.sha }}"
+          shortsha="${sha::7}"
+
+          case "$status" in
+            success) status_label="OK" ;;
+            failure) status_label="FAILED" ;;
+            cancelled) status_label="CANCELLED" ;;
+            skipped) status_label="SKIPPED" ;;
+            *) status_label="$(printf '%s' "$status" | tr '[:lower:]' '[:upper:]')" ;;
+          esac
+
+          text="$(cat <<EOF
+[DEPLOY][${status_label}] demo-app
+
+service: demo-app
+mode: ${mode}
+branch: ${branch}
+sha: ${shortsha}
+workflow: ${{ github.workflow }}
+repo: ${{ github.repository }}
+EOF
+          )"
+
+          python3 - <<'PY' "$text" "${{ secrets.TG_CHAT_ID }}" "${{ secrets.TG_BOT_TOKEN }}"
+import json
+import sys
+import urllib.request
+
+text = sys.argv[1]
+chat_id = sys.argv[2]
+token = sys.argv[3]
+
+url = f"https://api.telegram.org/bot{token}/sendMessage"
+payload = json.dumps(
+    {
+        "chat_id": chat_id,
+        "text": text,
+        "disable_web_page_preview": True,
+    }
+).encode("utf-8")
+
+req = urllib.request.Request(
+    url,
+    data=payload,
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+
+with urllib.request.urlopen(req, timeout=10) as resp:
+    print(resp.read().decode("utf-8", errors="replace"))
+PY
