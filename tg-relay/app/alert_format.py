@@ -42,6 +42,14 @@ def _one_line(value: str) -> str:
     return " ".join(value.split()).strip()
 
 
+def _multiline(value: str) -> str:
+    if not value:
+        return ""
+    lines = [line.strip() for line in value.splitlines()]
+    cleaned = "\n".join(line for line in lines if line)
+    return cleaned.strip()
+
+
 def _fmt_ts(value: Any) -> str:
     raw = _pick(value)
     if not raw:
@@ -52,6 +60,41 @@ def _fmt_ts(value: Any) -> str:
         return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
     except Exception:
         return raw
+
+
+def _is_compact_action_runner_message(payload: Dict[str, Any], alerts: List[Dict[str, Any]]) -> bool:
+    if len(alerts) != 1:
+        return False
+
+    receiver = _pick(payload.get("receiver"))
+    if receiver != "action-runner":
+        return False
+
+    alert = alerts[0]
+    labels = _as_dict(alert.get("labels"))
+    annotations = _as_dict(alert.get("annotations"))
+
+    service = _pick(labels.get("service"), labels.get("service_name"))
+    job = _pick(labels.get("job"))
+    summary = _pick(annotations.get("summary"))
+
+    return bool(service == "action-runner" and job == "control-plane" and summary)
+
+
+def _format_compact_action_runner_message(payload: Dict[str, Any], alerts: List[Dict[str, Any]]) -> str:
+    alert = alerts[0]
+    annotations = _as_dict(alert.get("annotations"))
+
+    summary = _one_line(_pick(annotations.get("summary")))
+    description = _multiline(_pick(annotations.get("description")))
+
+    parts: List[str] = []
+    if summary:
+        parts.append(summary)
+    if description and description != summary:
+        parts.append(description)
+
+    return "\n\n".join(parts).strip() or "Notification from action-runner"
 
 
 def _format_alert(alert: Dict[str, Any]) -> str:
@@ -72,7 +115,7 @@ def _format_alert(alert: Dict[str, Any]) -> str:
     )
 
     summary = _one_line(_pick(annotations.get("summary")))
-    description = _one_line(_pick(annotations.get("description")))
+    description = _multiline(_pick(annotations.get("description")))
     runbook = _pick(annotations.get("runbook_url"))
     generator = _pick(alert.get("generatorURL"))
     starts_at = _fmt_ts(alert.get("startsAt"))
@@ -96,7 +139,8 @@ def _format_alert(alert: Dict[str, Any]) -> str:
     if summary:
         lines.append(f"summary: {summary}")
     if description and description != summary:
-        lines.append(f"description: {description}")
+        lines.append("description:")
+        lines.append(description)
     if starts_at:
         lines.append(f"startsAt: {starts_at}")
     if ends_at and status == "RESOLVED":
@@ -118,6 +162,9 @@ def format_alerts_message(payload: Dict[str, Any], *, max_alerts: int) -> str:
 
     if not alerts:
         return "Alertmanager webhook received (no alerts in payload)."
+
+    if _is_compact_action_runner_message(payload, alerts):
+        return _format_compact_action_runner_message(payload, alerts)
 
     status = _pick(payload.get("status"), default="unknown").upper()
     receiver = _pick(payload.get("receiver"))
@@ -148,7 +195,7 @@ def format_alerts_message(payload: Dict[str, Any], *, max_alerts: int) -> str:
 
     if header_meta:
         lines.append(" ".join(header_meta))
-    
+
     common_summary = _one_line(_pick(common_annotations.get("summary")))
 
     first_alert_summary = ""
