@@ -212,10 +212,67 @@ jobs:
     steps:
       - name: Notify telegram
         shell: bash
+        env:
+          DEPLOY_STATUS: ${{ needs.deploy.result }}
+          DEPLOY_MODE: ${{ needs.deploy.outputs.mode }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          FULL_SHA: ${{ github.sha }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          REPO_NAME: ${{ github.repository }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
         run: |
-          status="${{ needs.deploy.result }}"
-          mode="${{ needs.deploy.outputs.mode }}"
-          text="monitoring-stack: demo-app deploy ${status} mode=${mode} branch=${{ github.ref_name }} sha=${{ github.sha }}"
-          curl -fsS -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendMessage" \
-            -H "Content-Type: application/json" \
-            -d "{\"chat_id\":\"${{ secrets.TG_CHAT_ID }}\",\"text\":\"$text\",\"disable_web_page_preview\":true}"
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          status = os.environ["DEPLOY_STATUS"]
+          mode = os.environ.get("DEPLOY_MODE", "unknown")
+          branch = os.environ["BRANCH_NAME"]
+          full_sha = os.environ["FULL_SHA"]
+          shortsha = full_sha[:7]
+          workflow = os.environ["WORKFLOW_NAME"]
+          repo = os.environ["REPO_NAME"]
+          chat_id = os.environ["TG_CHAT_ID"]
+          token = os.environ["TG_BOT_TOKEN"]
+
+          status_map = {
+              "success": "OK",
+              "failure": "FAILED",
+              "cancelled": "CANCELLED",
+              "skipped": "SKIPPED",
+          }
+          status_label = status_map.get(status, status.upper())
+
+          text = "\n".join([
+              f"[DEPLOY][{status_label}] demo-app",
+              "",
+              "service: demo-app",
+              f"mode: {mode}",
+              f"branch: {branch}",
+              f"sha: {shortsha}",
+              f"workflow: {workflow}",
+              f"repo: {repo}",
+          ])
+
+          url = f"https://api.telegram.org/bot{token}/sendMessage"
+          payload = json.dumps(
+              {
+                  "chat_id": chat_id,
+                  "text": text,
+                  "disable_web_page_preview": True,
+              }
+          ).encode("utf-8")
+
+          req = urllib.request.Request(
+              url,
+              data=payload,
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+
+          with urllib.request.urlopen(req, timeout=10) as resp:
+              print(resp.read().decode("utf-8", errors="replace"))
+          PY
