@@ -4,15 +4,25 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ page_title }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260414-7" />
-  <script defer src="/static/control_plane.js?v=20260414-7"></script>
+  <link rel="stylesheet" href="/static/app.css?v=20260414-8" />
+  <script defer src="/static/control_plane.js?v=20260414-8"></script>
   <style>
     .cp-topbar {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.35fr);
       gap: 18px;
-      flex-wrap: nowrap;
+      align-items: start;
+      margin-bottom: 22px;
+    }
+
+    .cp-topbar .brand {
+      min-width: 0;
+    }
+
+    .cp-topbar .title {
+      max-width: 520px;
+      overflow-wrap: anywhere;
+      line-height: 1.08;
     }
 
     .cp-topbar-right {
@@ -20,13 +30,32 @@
       align-items: center;
       justify-content: flex-end;
       gap: 12px;
-      flex-wrap: nowrap;
-      white-space: nowrap;
-      flex-shrink: 0;
+      flex-wrap: wrap;
+      min-width: 0;
     }
 
     .cp-subtitle {
+      white-space: normal;
+    }
+
+    .cp-link-btn {
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       white-space: nowrap;
+      flex: 0 0 auto;
+    }
+
+    .cp-topbar-right .powerline {
+      min-width: 0;
+      max-width: 100%;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .cp-topbar-right .seg {
+      min-width: 0;
     }
 
     .cp-summary-card {
@@ -40,14 +69,6 @@
       gap: 12px;
       flex-wrap: wrap;
       margin-bottom: 12px;
-    }
-
-    .cp-link-btn {
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      white-space: nowrap;
     }
 
     .cp-badge-row {
@@ -101,6 +122,48 @@
       font-family: var(--mono);
       font-size: 0.92rem;
       opacity: 0.9;
+    }
+
+    .cp-audit-section {
+      margin-top: 18px;
+    }
+
+    .cp-audit-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .cp-audit-card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      min-width: 0;
+    }
+
+    .cp-audit-title {
+      font-family: var(--mono);
+      font-weight: 950;
+      margin-bottom: 8px;
+      line-height: 1.25;
+    }
+
+    .cp-audit-text {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      line-height: 1.4;
+      margin-bottom: 12px;
+    }
+
+    .cp-audit-flow {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      color: var(--text);
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+      overflow-wrap: anywhere;
     }
 
     .cp-grid-3 {
@@ -192,181 +255,19 @@
       font-size: 0.95rem;
     }
 
-    .cp-status-shell {
-      border: 1px solid rgba(120, 120, 120, 0.22);
-      border-radius: 18px;
-      padding: 18px;
-      background: rgba(255, 255, 255, 0.015);
-    }
-
-    .cp-status-hero {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 14px;
-      align-items: start;
-      margin-bottom: 14px;
-    }
-
-    .cp-status-pill {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 108px;
-      padding: 10px 14px;
-      border-radius: 14px;
-      border: 1px solid rgba(120, 120, 120, 0.25);
-      background: rgba(255, 255, 255, 0.02);
-      font-family: var(--mono);
-      font-weight: 800;
-      letter-spacing: 0.4px;
-    }
-
-    .cp-status-pill.ok {
-      border-color: rgba(70, 200, 120, 0.35);
-      background: rgba(20, 120, 60, 0.14);
-    }
-
-    .cp-status-pill.info {
-      border-color: rgba(120, 160, 255, 0.32);
-      background: rgba(70, 90, 180, 0.12);
-    }
-
-    .cp-status-pill.warning {
-      border-color: rgba(255, 185, 60, 0.34);
-      background: rgba(140, 90, 10, 0.14);
-    }
-
-    .cp-status-pill.idle {
-      border-color: rgba(120, 120, 120, 0.25);
-      background: rgba(255, 255, 255, 0.02);
-    }
-
-    .cp-status-copy {
-      min-width: 0;
-    }
-
-    .cp-status-message {
-      font-family: var(--mono);
-      font-size: 1.02rem;
-      line-height: 1.45;
-      margin-bottom: 8px;
-    }
-
-    .cp-status-sub {
-      opacity: 0.82;
-      font-size: 0.95rem;
-    }
-
-    .cp-summary-stats {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-
-    .cp-stat-card {
-      border: 1px solid rgba(120, 120, 120, 0.22);
-      border-radius: 14px;
-      padding: 14px;
-      background: rgba(255, 255, 255, 0.02);
-      min-width: 0;
-    }
-
-    .cp-stat-k {
-      font-family: var(--mono);
-      opacity: 0.75;
-      font-size: 0.88rem;
-      margin-bottom: 8px;
-    }
-
-    .cp-stat-v {
-      font-family: var(--mono);
-      font-size: 1.4rem;
-      font-weight: 800;
-      line-height: 1.1;
-    }
-
-    .cp-summary-meta {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-
-    .cp-meta-card {
-      border: 1px solid rgba(120, 120, 120, 0.22);
-      border-radius: 14px;
-      padding: 14px;
-      background: rgba(255, 255, 255, 0.02);
-      min-width: 0;
-    }
-
-    .cp-meta-title {
-      font-family: var(--mono);
-      opacity: 0.75;
-      font-size: 0.88rem;
-      margin-bottom: 8px;
-    }
-
-    .cp-meta-line {
-      font-family: var(--mono);
-      line-height: 1.45;
-      word-break: break-word;
-    }
-
-    .cp-summary-last {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .cp-last-card {
-      border: 1px solid rgba(120, 120, 120, 0.22);
-      border-radius: 14px;
-      padding: 14px;
-      background: rgba(255, 255, 255, 0.02);
-      min-width: 0;
-    }
-
-    .cp-last-title {
-      font-family: var(--mono);
-      font-weight: 800;
-      margin-bottom: 10px;
-    }
-
-    .cp-last-body {
-      font-family: var(--mono);
-      line-height: 1.45;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
     @media (max-width: 1240px) {
       .cp-topbar {
-        flex-wrap: wrap;
+        grid-template-columns: 1fr;
       }
 
       .cp-topbar-right {
-        width: 100%;
         justify-content: flex-start;
-        flex-wrap: wrap;
-        white-space: normal;
-      }
-
-      .cp-subtitle {
-        white-space: normal;
       }
 
       .cp-grid-3,
       .cp-grid-2,
       .cp-links,
-      .cp-summary-stats,
-      .cp-summary-meta,
-      .cp-summary-last {
-        grid-template-columns: 1fr;
-      }
-
-      .cp-status-hero {
+      .cp-audit-grid {
         grid-template-columns: 1fr;
       }
 
@@ -454,9 +355,39 @@
       </div>
     </div>
 
+    <section class="card cp-audit-section">
+      <div class="card-title step-title">2. Audit domains</div>
+
+      <div class="cp-audit-grid">
+        <div class="cp-audit-card">
+          <div class="cp-audit-title">Admin Host Audit</div>
+          <div class="cp-audit-text">Admin host posture, packages, services, logs and analyzer output.</div>
+          <div class="cp-audit-flow">run → verify → analyze → optional brief</div>
+        </div>
+
+        <div class="cp-audit-card">
+          <div class="cp-audit-title">VPS Host Audit</div>
+          <div class="cp-audit-text">VPS services, UFW, Docker, disk, journal and node exporter health.</div>
+          <div class="cp-audit-flow">run → verify → analyze → optional brief</div>
+        </div>
+
+        <div class="cp-audit-card">
+          <div class="cp-audit-title">Monitoring Stack Audit</div>
+          <div class="cp-audit-text">Prometheus, Alertmanager, Grafana, Loki and demo-app canary health.</div>
+          <div class="cp-audit-flow">run → verify → analyze → optional brief</div>
+        </div>
+
+        <div class="cp-audit-card">
+          <div class="cp-audit-title">Mac Host Audit</div>
+          <div class="cp-audit-text">Agent-published Mac snapshot, memory, swap, battery, Time Machine and brew.</div>
+          <div class="cp-audit-flow">verify → analyze → optional brief</div>
+        </div>
+      </div>
+    </section>
+
     <section class="cp-grid-3">
       <div class="card cp-grid-card cp-pipeline-card">
-        <div class="card-title step-title cp-pipeline-title">2. Decisions</div>
+        <div class="card-title step-title cp-pipeline-title">3. Decisions</div>
         <div class="cp-filter-row">
           <label class="cp-label" for="decision-filter">filter</label>
           <select id="decision-filter" class="input mono">
@@ -471,7 +402,7 @@
       </div>
 
       <div class="card cp-grid-card cp-pipeline-card">
-        <div class="card-title step-title cp-pipeline-title">3. Task orchestration</div>
+        <div class="card-title step-title cp-pipeline-title">4. Task orchestration</div>
         <div class="cp-filter-row">
           <label class="cp-label" for="task-filter">filter</label>
           <select id="task-filter" class="input mono">
@@ -486,7 +417,7 @@
       </div>
 
       <div class="card cp-grid-card cp-pipeline-card">
-        <div class="card-title step-title cp-pipeline-title">4. Executions</div>
+        <div class="card-title step-title cp-pipeline-title">5. Executions</div>
         <div class="cp-filter-row">
           <label class="cp-label" for="run-filter">filter</label>
           <select id="run-filter" class="input mono">
@@ -504,18 +435,18 @@
 
     <section class="cp-grid-2">
       <div class="card cp-grid-card">
-        <div class="card-title step-title">5. Outcomes</div>
+        <div class="card-title step-title">6. Outcomes</div>
         <pre id="outcomes-out" class="pre pre-client cp-grid-pre-sm">(loading)</pre>
       </div>
 
       <div class="card cp-grid-card">
-        <div class="card-title step-title">6. Observability</div>
+        <div class="card-title step-title">7. Observability</div>
         <div class="cp-links">
-          <a class="cp-link-card" href="/control-plane" target="_blank" rel="noopener noreferrer">
-            <div class="cp-link-title">Control plane</div>
-            <div class="cp-link-text">Main public pipeline UI.</div>
+          <a class="cp-link-card" href="/dashboards" target="_blank" rel="noopener noreferrer">
+            <div class="cp-link-title">Dashboards</div>
+            <div class="cp-link-text">Public dashboard gallery.</div>
           </a>
-          <a class="cp-link-card" href="https://demo.142.93.143.228.nip.io/" target="_blank" rel="noopener noreferrer">
+          <a class="cp-link-card" href="/" target="_blank" rel="noopener noreferrer">
             <div class="cp-link-title">Demo app</div>
             <div class="cp-link-text">Traffic generator and observability demo surface.</div>
           </a>
