@@ -24,6 +24,7 @@ from .rate_limit import SlidingWindowRateLimiter, rate_limit_response
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
+WEEKLY_REVIEW_PATH = Path("/srv/control-plane/state/reviews/weekly/weekly-latest.md")
 
 _URL_RE = re.compile(r"https?://[^\s]+", re.IGNORECASE)
 _IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
@@ -166,6 +167,90 @@ def create_app() -> FastAPI:
         if len(text) > max_len:
             return text[: max_len - 1] + "…"
         return text
+
+    def _truncate_public_text(text: str, *, max_len: int = 700) -> str:
+        cleaned = " ".join(str(text or "").split())
+        cleaned = _URL_RE.sub("[redacted-url]", cleaned)
+        cleaned = _IPV4_RE.sub("[redacted-ip]", cleaned)
+        cleaned = _HOSTPORT_RE.sub("[redacted-hostport]", cleaned)
+        cleaned = _INTERNAL_WORDS_RE.sub("[redacted]", cleaned)
+
+        if len(cleaned) <= max_len:
+            return cleaned
+        return cleaned[: max_len - 1].rstrip() + "…"
+
+    def _extract_section_lines(lines: list[str], section: str) -> list[str]:
+        marker = f"## {section}".strip().lower()
+        start = None
+
+        for idx, line in enumerate(lines):
+            if line.strip().lower() == marker:
+                start = idx + 1
+                break
+
+        if start is None:
+            return []
+
+        out: list[str] = []
+        for line in lines[start:]:
+            if line.startswith("## "):
+                break
+            if line.strip():
+                out.append(line.rstrip())
+
+        return out
+
+    def _extract_bullets(lines: list[str], *, limit: int) -> list[str]:
+        items: list[str] = []
+
+        for line in lines:
+            stripped = line.strip()
+            if not stripped.startswith("- "):
+                continue
+
+            text = stripped[2:].strip()
+            text = re.sub(r"\*\*", "", text)
+            text = re.sub(r"\s+\[[^\]]+\]$", "", text)
+            text = _truncate_public_text(text, max_len=180)
+
+            if text:
+                items.append(text)
+
+            if len(items) >= limit:
+                break
+
+        return items
+
+    def _parse_weekly_review_public(markdown: str) -> dict[str, Any]:
+        lines = markdown.splitlines()
+
+        week_status = "unknown"
+        window_start = ""
+        window_end = ""
+
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("- Week status:"):
+                week_status = stripped.split(":", 1)[1].strip() or "unknown"
+            elif stripped.startswith("- Window start:"):
+                window_start = stripped.split(":", 1)[1].strip()
+            elif stripped.startswith("- Window end:"):
+                window_end = stripped.split(":", 1)[1].strip()
+
+        executive_summary = _truncate_public_text(
+            " ".join(_extract_section_lines(lines, "Executive summary")),
+            max_len=700,
+        )
+
+        return {
+            "ok": True,
+            "week_status": week_status,
+            "window_start": window_start,
+            "window_end": window_end,
+            "executive_summary": executive_summary,
+            "top_issues": _extract_bullets(_extract_section_lines(lines, "Top issues"), limit=3),
+            "recommended_actions": _extract_bullets(_extract_section_lines(lines, "Recommended actions"), limit=3),
+        }
 
     def _sanitize_health(health: dict[str, Any]) -> dict[str, Any]:
         return {
@@ -559,6 +644,18 @@ def create_app() -> FastAPI:
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
 
+    @app.get("/api/weekly-review/latest")
+    async def weekly_review_latest():
+        try:
+            if not WEEKLY_REVIEW_PATH.exists():
+                return JSONResponse({"ok": False, "error": "weekly review not found"}, status_code=404)
+
+            markdown = WEEKLY_REVIEW_PATH.read_text(encoding="utf-8")
+            return _parse_weekly_review_public(markdown)
+
+        except Exception:
+            return JSONResponse({"ok": False, "error": "weekly review unavailable"}, status_code=502)
+
     @app.get("/api/control-plane/healthz")
     async def control_plane_healthz():
         if not settings.control_plane_enabled:
@@ -571,11 +668,7 @@ def create_app() -> FastAPI:
             return JSONResponse({"ok": False, "error": "runner unavailable"}, status_code=502)
 
     @app.get("/api/control-plane/tasks")
-    async def control_plane_tasks(
-        window: str = DEFAULT_WINDOW,
-        task_status: str = "all",
-        limit: int = 50,
-    ):
+    async def control_plane_tasks(window: str = DEFAULT_WINDOW, task_status: str = "all", limit: int = 50):
         if not settings.control_plane_enabled:
             return JSONResponse({"ok": False, "error": "control-plane disabled"}, status_code=404)
 
@@ -598,11 +691,7 @@ def create_app() -> FastAPI:
             return JSONResponse({"ok": False, "error": "runner unavailable"}, status_code=502)
 
     @app.get("/api/control-plane/decisions")
-    async def control_plane_decisions(
-        window: str = DEFAULT_WINDOW,
-        decision_type: str = "all",
-        limit: int = 50,
-    ):
+    async def control_plane_decisions(window: str = DEFAULT_WINDOW, decision_type: str = "all", limit: int = 50):
         if not settings.control_plane_enabled:
             return JSONResponse({"ok": False, "error": "control-plane disabled"}, status_code=404)
 
@@ -625,11 +714,7 @@ def create_app() -> FastAPI:
             return JSONResponse({"ok": False, "error": "runner unavailable"}, status_code=502)
 
     @app.get("/api/control-plane/runs")
-    async def control_plane_runs(
-        window: str = DEFAULT_WINDOW,
-        run_status: str = "all",
-        limit: int = 50,
-    ):
+    async def control_plane_runs(window: str = DEFAULT_WINDOW, run_status: str = "all", limit: int = 50):
         if not settings.control_plane_enabled:
             return JSONResponse({"ok": False, "error": "control-plane disabled"}, status_code=404)
 
