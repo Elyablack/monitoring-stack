@@ -4,25 +4,27 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ page_title }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260414-8" />
-  <script defer src="/static/control_plane.js?v=20260414-8"></script>
+  <link rel="stylesheet" href="/static/app.css?v=20260414-10" />
+  <script defer src="/static/control_plane.js?v=20260414-10"></script>
+
   <style>
     .cp-topbar {
-      display: grid;
-      grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.35fr);
-      gap: 18px;
-      align-items: start;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 22px;
+      flex-wrap: wrap;
       margin-bottom: 22px;
     }
 
     .cp-topbar .brand {
       min-width: 0;
+      flex: 1 1 360px;
     }
 
     .cp-topbar .title {
-      max-width: 520px;
+      line-height: 1.1;
       overflow-wrap: anywhere;
-      line-height: 1.08;
     }
 
     .cp-topbar-right {
@@ -32,6 +34,7 @@
       gap: 12px;
       flex-wrap: wrap;
       min-width: 0;
+      flex: 1 1 560px;
     }
 
     .cp-subtitle {
@@ -47,6 +50,11 @@
       flex: 0 0 auto;
     }
 
+    .cp-link-btn[href="/dashboards"] {
+      border-color: color-mix(in srgb, var(--info) 45%, var(--border));
+      background: color-mix(in srgb, var(--info) 14%, var(--panel));
+    }
+
     .cp-topbar-right .powerline {
       min-width: 0;
       max-width: 100%;
@@ -54,12 +62,9 @@
       flex-wrap: wrap;
     }
 
-    .cp-topbar-right .seg {
-      min-width: 0;
-    }
-
     .cp-summary-card {
       margin-top: 22px;
+      border-color: color-mix(in srgb, var(--primary) 26%, var(--border));
     }
 
     .cp-card-head {
@@ -69,6 +74,10 @@
       gap: 12px;
       flex-wrap: wrap;
       margin-bottom: 12px;
+    }
+
+    .cp-summary-card > .cp-card-head .step-title {
+      color: color-mix(in srgb, var(--primary) 82%, var(--text));
     }
 
     .cp-badge-row {
@@ -124,8 +133,18 @@
       opacity: 0.9;
     }
 
+    .btn-window.primary {
+      border-color: color-mix(in srgb, var(--ok) 50%, var(--border));
+      background: color-mix(in srgb, var(--ok) 16%, var(--panel));
+    }
+
     .cp-audit-section {
       margin-top: 18px;
+      border-color: color-mix(in srgb, var(--info) 28%, var(--border));
+    }
+
+    .cp-audit-section > .step-title {
+      color: color-mix(in srgb, var(--info) 86%, var(--text));
     }
 
     .cp-audit-grid {
@@ -142,11 +161,43 @@
       min-width: 0;
     }
 
+    .cp-audit-card:nth-child(1) {
+      border-color: color-mix(in srgb, var(--primary) 34%, var(--border));
+    }
+
+    .cp-audit-card:nth-child(2) {
+      border-color: color-mix(in srgb, var(--ok) 34%, var(--border));
+    }
+
+    .cp-audit-card:nth-child(3) {
+      border-color: color-mix(in srgb, var(--warn) 38%, var(--border));
+    }
+
+    .cp-audit-card:nth-child(4) {
+      border-color: color-mix(in srgb, var(--info) 38%, var(--border));
+    }
+
     .cp-audit-title {
       font-family: var(--mono);
       font-weight: 950;
       margin-bottom: 8px;
       line-height: 1.25;
+    }
+
+    .cp-audit-card:nth-child(1) .cp-audit-title {
+      color: color-mix(in srgb, var(--primary) 82%, var(--text));
+    }
+
+    .cp-audit-card:nth-child(2) .cp-audit-title {
+      color: color-mix(in srgb, var(--ok) 82%, var(--text));
+    }
+
+    .cp-audit-card:nth-child(3) .cp-audit-title {
+      color: color-mix(in srgb, var(--warn) 88%, var(--text));
+    }
+
+    .cp-audit-card:nth-child(4) .cp-audit-title {
+      color: color-mix(in srgb, var(--info) 86%, var(--text));
     }
 
     .cp-audit-text {
@@ -160,7 +211,7 @@
     .cp-audit-flow {
       font-family: var(--mono);
       font-size: 0.82rem;
-      color: var(--text);
+      color: color-mix(in srgb, var(--primary) 72%, var(--text));
       border-top: 1px solid var(--border);
       padding-top: 10px;
       overflow-wrap: anywhere;
@@ -191,6 +242,30 @@
       grid-template-rows: auto auto 1fr;
       gap: 10px;
       height: 100%;
+    }
+
+    .cp-pipeline-card:nth-child(1) {
+      border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
+    }
+
+    .cp-pipeline-card:nth-child(2) {
+      border-color: color-mix(in srgb, var(--warn) 30%, var(--border));
+    }
+
+    .cp-pipeline-card:nth-child(3) {
+      border-color: color-mix(in srgb, var(--ok) 28%, var(--border));
+    }
+
+    .cp-pipeline-card:nth-child(1) .step-title {
+      color: color-mix(in srgb, var(--primary) 86%, var(--text));
+    }
+
+    .cp-pipeline-card:nth-child(2) .step-title {
+      color: color-mix(in srgb, var(--warn) 88%, var(--text));
+    }
+
+    .cp-pipeline-card:nth-child(3) .step-title {
+      color: color-mix(in srgb, var(--ok) 84%, var(--text));
     }
 
     .cp-pipeline-title {
@@ -256,10 +331,6 @@
     }
 
     @media (max-width: 1240px) {
-      .cp-topbar {
-        grid-template-columns: 1fr;
-      }
-
       .cp-topbar-right {
         justify-content: flex-start;
       }
