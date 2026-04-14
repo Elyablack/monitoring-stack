@@ -141,6 +141,8 @@ services:
     restart: always
     ports:
       - "127.0.0.1:8081:8081"
+    volumes:
+      - /srv/control-plane/state/reviews/weekly:/srv/control-plane/state/reviews/weekly:ro
     networks:
       - monitoring
     env_file:
