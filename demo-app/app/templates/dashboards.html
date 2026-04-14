@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ page_title }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260408-2" />
-  <script defer src="/static/app.js?v=20260408-2"></script>
+  <link rel="stylesheet" href="/static/app.css?v=20260414-1" />
+  <script defer src="/static/app.js?v=20260414-1"></script>
   <style>
     .db-topbar {
       display: flex;
@@ -37,40 +37,172 @@
       white-space: nowrap;
     }
 
-    .db-intro {
+    .db-hero {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .db-hero-card {
+      min-width: 0;
+    }
+
+    .db-hero-title {
+      font-family: var(--mono);
+      font-size: clamp(1.55rem, 2vw, 2.2rem);
+      font-weight: 950;
+      line-height: 1.15;
+      margin: 0 0 12px 0;
+      letter-spacing: 0.02em;
+    }
+
+    .db-hero-text {
+      color: var(--muted);
+      font-size: 0.98rem;
+      line-height: 1.5;
+      font-family: var(--mono);
+      max-width: 920px;
+    }
+
+    .db-hero-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
       margin-top: 18px;
     }
 
-    .db-intro-text {
-      max-width: 960px;
+    .db-kpi {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      min-width: 0;
+    }
+
+    .db-kpi-k {
       color: var(--muted);
-      font-size: 0.98rem;
-      line-height: 1.45;
       font-family: var(--mono);
+      font-size: 0.82rem;
+      margin-bottom: 8px;
+    }
+
+    .db-kpi-v {
+      font-family: var(--mono);
+      font-size: 1.5rem;
+      font-weight: 950;
+      line-height: 1.1;
+      overflow-wrap: anywhere;
+    }
+
+    .db-ai-card {
+      min-width: 0;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+      background:
+        linear-gradient(
+          135deg,
+          color-mix(in srgb, var(--primary) 10%, var(--panel)),
+          color-mix(in srgb, var(--panel) 96%, transparent)
+        );
+    }
+
+    .db-ai-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .db-ai-title {
+      font-family: var(--mono);
+      font-size: 1.1rem;
+      font-weight: 950;
+      margin: 0;
+    }
+
+    .db-ai-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 7px 10px;
+      border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--border));
+      background: color-mix(in srgb, var(--warn) 10%, var(--panel));
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      font-weight: 900;
+    }
+
+    .db-ai-summary {
+      font-family: var(--mono);
+      line-height: 1.45;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    .db-ai-list {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+
+    .db-ai-path {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      background: color-mix(in srgb, var(--bg) 55%, transparent);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.84rem;
+      overflow-wrap: anywhere;
     }
 
     .db-section {
       margin-top: 22px;
     }
 
+    .db-section-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
     .db-section-title {
       font-family: var(--mono);
-      font-size: 1.4rem;
-      font-weight: 900;
-      margin: 0 0 14px 0;
+      font-size: 1.35rem;
+      font-weight: 950;
+      margin: 0;
       letter-spacing: 0.02em;
     }
 
-    .db-grid-featured {
+    .db-section-subtitle {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.92rem;
+      line-height: 1.4;
+    }
+
+    .db-grid-primary {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 18px;
       align-items: stretch;
     }
 
     .db-grid-secondary {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 18px;
       align-items: stretch;
     }
@@ -79,7 +211,7 @@
       min-width: 0;
       overflow: hidden;
       display: grid;
-      grid-template-rows: auto auto auto 1fr;
+      grid-template-rows: auto auto auto 1fr auto;
       height: 100%;
     }
 
@@ -97,15 +229,15 @@
 
     .db-card-title {
       font-family: var(--mono);
-      font-size: 1.12rem;
-      font-weight: 900;
+      font-size: 1.14rem;
+      font-weight: 950;
       margin: 0 0 8px 0;
       line-height: 1.25;
     }
 
     .db-card-subtitle {
       color: var(--muted);
-      font-size: 0.95rem;
+      font-size: 0.93rem;
       line-height: 1.4;
       font-family: var(--mono);
     }
@@ -126,50 +258,64 @@
       border: 1px solid var(--border);
       background: color-mix(in srgb, var(--panel) 92%, transparent);
       font-family: var(--mono);
-      font-size: 0.82rem;
-      font-weight: 800;
+      font-size: 0.78rem;
+      font-weight: 900;
       line-height: 1;
     }
 
     .db-badge.featured {
-      border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+      border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
       background: color-mix(in srgb, var(--primary) 10%, var(--panel));
     }
 
     .db-badge.metrics {
-      border-color: color-mix(in srgb, var(--ok) 35%, var(--border));
+      border-color: color-mix(in srgb, var(--ok) 38%, var(--border));
       background: color-mix(in srgb, var(--ok) 10%, var(--panel));
     }
 
     .db-badge.alerts {
-      border-color: color-mix(in srgb, var(--warn) 40%, var(--border));
+      border-color: color-mix(in srgb, var(--warn) 42%, var(--border));
       background: color-mix(in srgb, var(--warn) 10%, var(--panel));
     }
 
     .db-badge.infra {
-      border-color: color-mix(in srgb, #4c8bf5 40%, var(--border));
-      background: color-mix(in srgb, #4c8bf5 10%, var(--panel));
+      border-color: color-mix(in srgb, var(--info) 42%, var(--border));
+      background: color-mix(in srgb, var(--info) 10%, var(--panel));
     }
 
     .db-preview-wrap {
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: 18px;
       overflow: hidden;
-      background: color-mix(in srgb, var(--panel) 94%, transparent);
+      background: color-mix(in srgb, var(--bg) 60%, transparent);
       margin-bottom: 14px;
+    }
+
+    .db-preview-wrap.large {
+      min-height: 360px;
     }
 
     .db-preview {
       display: block;
       width: 100%;
       height: auto;
+      transform: scale(1.01);
+      transform-origin: center top;
     }
 
     .db-desc {
       font-family: var(--mono);
-      font-size: 0.95rem;
-      line-height: 1.45;
+      font-size: 0.94rem;
+      line-height: 1.48;
       color: var(--text);
+    }
+
+    .db-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
     }
 
     .db-note {
@@ -196,16 +342,28 @@
         white-space: normal;
       }
 
-      .db-grid-featured {
-        grid-template-columns: 1fr;
-      }
-
+      .db-hero,
+      .db-grid-primary,
       .db-grid-secondary {
         grid-template-columns: 1fr;
       }
 
+      .db-hero-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
       .db-card {
         height: auto;
+      }
+
+      .db-preview-wrap.large {
+        min-height: 0;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .db-hero-kpis {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -224,12 +382,13 @@
         </div>
 
         <div class="subtitle db-subtitle">
-          curated metrics, alerts and agent surfaces
+          curated operational views for monitoring, audits, control-plane and Mac
         </div>
       </div>
 
       <div class="db-topbar-right">
         <a class="btn primary db-link-btn" href="/" title="Back to demo app">back to demo</a>
+        <a class="btn primary db-link-btn" href="/control-plane" title="Open control-plane">open /control-plane</a>
 
         <div class="powerline" id="powerline">
           <div class="seg" id="pl-seg-app">
@@ -249,20 +408,71 @@
       </div>
     </div>
 
-    <div class="db-intro">
-      <div class="db-intro-text">
-        Public-safe dashboard gallery for the monitoring stack. These are screenshot previews of the
-        main observability surfaces: control-plane orchestration, demo-app behavior, mac agent state,
-        application alerting and host alerting.
+    <section class="db-hero">
+      <div class="card db-hero-card">
+        <h1 class="db-hero-title">Operational dashboards</h1>
+        <div class="db-hero-text">
+          Public-safe dashboard gallery for the monitoring stack. Screenshots are grouped by the questions
+          they answer: is the control-plane healthy, are audits clean, is the demo app behaving, and is the
+          Mac agent alive.
+        </div>
+
+        <div class="db-hero-kpis">
+          <div class="db-kpi">
+            <div class="db-kpi-k">domains</div>
+            <div class="db-kpi-v">4 audits</div>
+          </div>
+          <div class="db-kpi">
+            <div class="db-kpi-k">workflow</div>
+            <div class="db-kpi-v">AI review</div>
+          </div>
+          <div class="db-kpi">
+            <div class="db-kpi-k">runtime</div>
+            <div class="db-kpi-v">Grafana</div>
+          </div>
+          <div class="db-kpi">
+            <div class="db-kpi-k">surface</div>
+            <div class="db-kpi-v">safe preview</div>
+          </div>
+        </div>
       </div>
-    </div>
+
+      <aside class="card db-ai-card">
+        <div class="db-ai-head">
+          <h2 class="db-ai-title">Latest AI weekly review</h2>
+          <span class="db-ai-pill">watch</span>
+        </div>
+
+        <div class="db-ai-summary">
+          Weekly review summarizes deterministic audits, failures, recurring patterns, and practical next actions.
+          The current expected posture is: latest audit domains should be OK, while historical warning/critical
+          events stay visible as recurrence-prevention work.
+        </div>
+
+        <ul class="db-ai-list">
+          <li>Admin, VPS, monitoring stack, and Mac host audits are reviewed together.</li>
+          <li>Warning/critical audit briefs can be referenced in the weekly report.</li>
+          <li>Markdown is copied to Mac for operator reading.</li>
+        </ul>
+
+        <div class="db-ai-path">
+          VPS: /srv/control-plane/state/reviews/weekly/weekly-latest.md<br />
+          Mac: ~/Documents/control-plane-reviews/weekly/
+        </div>
+      </aside>
+    </section>
   </header>
 
   <main class="container">
     <section class="db-section">
-      <h2 class="db-section-title">Featured dashboards</h2>
+      <div class="db-section-head">
+        <div>
+          <h2 class="db-section-title">Primary views</h2>
+          <div class="db-section-subtitle">Start here during normal operation or after an alert.</div>
+        </div>
+      </div>
 
-      <div class="db-grid-featured">
+      <div class="db-grid-primary">
         <article class="card db-card">
           <div class="db-card-head">
             <div class="db-card-title-wrap">
@@ -274,9 +484,10 @@
           <div class="db-badges">
             <span class="db-badge featured">featured</span>
             <span class="db-badge metrics">orchestration</span>
+            <span class="db-badge infra">control-plane</span>
           </div>
 
-          <div class="db-preview-wrap">
+          <div class="db-preview-wrap large">
             <img
               class="db-preview"
               src="/static/dashboards/01-control-plane-overview.png"
@@ -285,16 +496,63 @@
           </div>
 
           <div class="db-desc">
-            Best starting point to understand how alerts move through the control-plane: decisions,
-            queued work, action runs and mac remediation outcomes.
+            Best starting point to understand how signals move through decisions, queued work, action runs,
+            notifications, chains, and remote Mac remediation outcomes.
+          </div>
+
+          <div class="db-actions">
+            <a class="btn primary db-link-btn" href="/control-plane">open control-plane UI</a>
           </div>
         </article>
 
         <article class="card db-card">
           <div class="db-card-head">
             <div class="db-card-title-wrap">
+              <h3 class="db-card-title">Mac Host Audit</h3>
+              <div class="db-card-subtitle">Mac audit posture, memory pressure, agent health, battery and backups.</div>
+            </div>
+          </div>
+
+          <div class="db-badges">
+            <span class="db-badge featured">featured</span>
+            <span class="db-badge infra">mac audit</span>
+            <span class="db-badge metrics">textfile metrics</span>
+          </div>
+
+          <div class="db-preview-wrap large">
+            <img
+              class="db-preview"
+              src="/static/dashboards/03-mac-dashboard.png"
+              alt="Mac Host Audit dashboard preview"
+            />
+          </div>
+
+          <div class="db-desc">
+            Answers whether the Mac is OK, whether the local agent is alive, whether memory pressure exists,
+            whether Time Machine is fresh, and which processes are currently consuming memory.
+          </div>
+
+          <div class="db-actions">
+            <span class="btn db-link-btn" aria-disabled="true">Grafana: Mac Host Audit</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="db-section">
+      <div class="db-section-head">
+        <div>
+          <h2 class="db-section-title">Application and alert views</h2>
+          <div class="db-section-subtitle">Useful when validating demo traffic, SLO rules, or host-level alerting.</div>
+        </div>
+      </div>
+
+      <div class="db-grid-secondary">
+        <article class="card db-card">
+          <div class="db-card-head">
+            <div class="db-card-title-wrap">
               <h3 class="db-card-title">Demo App Observability</h3>
-              <div class="db-card-subtitle">Backup, traffic, errors, routes, latency and inflight behavior.</div>
+              <div class="db-card-subtitle">Traffic, errors, routes, p95 latency and inflight behavior.</div>
             </div>
           </div>
 
@@ -312,44 +570,15 @@
           </div>
 
           <div class="db-desc">
-            Use together with the main demo page. This dashboard shows how manual traffic generation
-            changes request rate, error distribution, p95 latency and service health.
+            Use together with the main demo page. Shows how manual traffic generation changes request rate,
+            error distribution, latency, and service health.
+          </div>
+
+          <div class="db-actions">
+            <a class="btn primary db-link-btn" href="/">open demo generator</a>
           </div>
         </article>
 
-        <article class="card db-card">
-          <div class="db-card-head">
-            <div class="db-card-title-wrap">
-              <h3 class="db-card-title">Mac Agent</h3>
-              <div class="db-card-subtitle">Memory status, top processes, swap, freshness and uptime.</div>
-            </div>
-          </div>
-
-          <div class="db-badges">
-            <span class="db-badge featured">featured</span>
-            <span class="db-badge infra">remote agent</span>
-          </div>
-
-          <div class="db-preview-wrap">
-            <img
-              class="db-preview"
-              src="/static/dashboards/03-mac-dashboard.png"
-              alt="Mac agent dashboard preview"
-            />
-          </div>
-
-          <div class="db-desc">
-            Remote mac observability surface for memory pressure work. Shows host state, top memory
-            consumers, publishing freshness and operational readiness of the agent loop.
-          </div>
-        </article>
-      </div>
-    </section>
-
-    <section class="db-section">
-      <h2 class="db-section-title">Alerts and infrastructure</h2>
-
-      <div class="db-grid-secondary">
         <article class="card db-card">
           <div class="db-card-head">
             <div class="db-card-title-wrap">
@@ -372,8 +601,12 @@
           </div>
 
           <div class="db-desc">
-            Focused alert-oriented view for the demo app. Useful when validating alert thresholds or
-            checking whether traffic spikes translate into warning conditions.
+            Focused alert-oriented view for the demo app. Useful when checking whether traffic spikes
+            become warning or critical conditions.
+          </div>
+
+          <div class="db-actions">
+            <span class="btn db-link-btn" aria-disabled="true">Grafana: Application Alerts</span>
           </div>
         </article>
 
@@ -399,8 +632,12 @@
           </div>
 
           <div class="db-desc">
-            Infrastructure-focused dashboard for the admin and vps nodes. Good for reboot detection,
-            disk pressure checks and quick host-level health validation.
+            Infrastructure-focused dashboard for admin and VPS nodes. Good for reboot detection,
+            disk pressure, node exporter status, and quick host-level health validation.
+          </div>
+
+          <div class="db-actions">
+            <span class="btn db-link-btn" aria-disabled="true">Grafana: Host Alerts</span>
           </div>
         </article>
       </div>
