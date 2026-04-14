@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ page_title }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260414-5" />
-  <script defer src="/static/app.js?v=20260414-5"></script>
+  <link rel="stylesheet" href="/static/app.css?v=20260414-6" />
+  <script defer src="/static/app.js?v=20260414-6"></script>
   <style>
     .db-topbar {
       display: flex;
@@ -62,6 +62,10 @@
       align-items: stretch;
     }
 
+    .db-hero-card {
+      min-height: 400px;
+    }
+
     .db-hero-title {
       font-family: var(--mono);
       font-size: clamp(1.55rem, 2vw, 2.2rem);
@@ -114,7 +118,8 @@
       display: grid;
       gap: 12px;
       align-content: start;
-      max-height: 360px;
+      min-height: 400px;
+      max-height: 400px;
       overflow-y: auto;
       overflow-x: hidden;
       border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
@@ -209,11 +214,11 @@
     }
 
     .db-section {
-      margin-top: 26px;
+      margin-top: 28px;
     }
 
     .db-section-primary {
-      margin-top: 48px;
+      margin-top: 18px;
     }
 
     .db-section-alerts {
@@ -396,6 +401,15 @@
 
       .db-card {
         height: auto;
+      }
+
+      .db-hero-card {
+        min-height: 0;
+      }
+
+      .db-ai-card {
+        min-height: 0;
+        max-height: 420px;
       }
 
       .db-preview-wrap.large {
