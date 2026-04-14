@@ -4,15 +4,16 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ page_title }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260414-3" />
-  <script defer src="/static/app.js?v=20260414-3"></script>
+  <link rel="stylesheet" href="/static/app.css?v=20260414-4" />
+  <script defer src="/static/app.js?v=20260414-4"></script>
   <style>
     .db-topbar {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      gap: 18px;
+      gap: 22px;
       flex-wrap: wrap;
+      margin-bottom: 30px;
     }
 
     .db-topbar .brand {
@@ -54,7 +55,7 @@
     }
 
     .db-hero {
-      margin-top: 18px;
+      margin-top: 26px;
       display: grid;
       grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
       gap: 18px;
@@ -188,7 +189,15 @@
     }
 
     .db-section {
-      margin-top: 22px;
+      margin-top: 28px;
+    }
+
+    .db-section-primary {
+      margin-top: 48px;
+    }
+
+    .db-section-alerts {
+      margin-top: 64px;
     }
 
     .db-section-head {
@@ -197,22 +206,24 @@
       justify-content: space-between;
       gap: 14px;
       flex-wrap: wrap;
-      margin-bottom: 14px;
+      margin-bottom: 18px;
     }
 
     .db-section-title {
       font-family: var(--mono);
-      font-size: 1.35rem;
+      font-size: 1.55rem;
       font-weight: 950;
       margin: 0;
       letter-spacing: 0.02em;
+      line-height: 1.15;
     }
 
     .db-section-subtitle {
       color: var(--muted);
       font-family: var(--mono);
-      font-size: 0.92rem;
+      font-size: 0.94rem;
       line-height: 1.4;
+      margin-top: 4px;
     }
 
     .db-grid-primary {
@@ -341,7 +352,7 @@
     }
 
     .db-note {
-      margin-top: 18px;
+      margin-top: 22px;
       color: var(--muted);
       font-family: var(--mono);
       font-size: 0.9rem;
@@ -370,11 +381,23 @@
       .db-preview-wrap.large {
         min-height: 0;
       }
+
+      .db-section-primary {
+        margin-top: 38px;
+      }
+
+      .db-section-alerts {
+        margin-top: 52px;
+      }
     }
 
     @media (max-width: 760px) {
       .db-hero-kpis {
         grid-template-columns: 1fr;
+      }
+
+      .db-section-title {
+        font-size: 1.35rem;
       }
     }
   </style>
@@ -473,7 +496,7 @@
   </header>
 
   <main class="container">
-    <section class="db-section">
+    <section class="db-section db-section-primary">
       <div class="db-section-head">
         <div>
           <h2 class="db-section-title">Primary views</h2>
@@ -540,7 +563,7 @@
       </div>
     </section>
 
-    <section class="db-section">
+    <section class="db-section db-section-alerts">
       <div class="db-section-head">
         <div>
           <h2 class="db-section-title">Application and alert views</h2>
