@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ page_title }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260414-2" />
-  <script defer src="/static/app.js?v=20260414-2"></script>
+  <link rel="stylesheet" href="/static/app.css?v=20260414-3" />
+  <script defer src="/static/app.js?v=20260414-3"></script>
   <style>
     .db-topbar {
       display: flex;
@@ -59,10 +59,6 @@
       grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
       gap: 18px;
       align-items: stretch;
-    }
-
-    .db-hero-card {
-      min-width: 0;
     }
 
     .db-hero-title {
@@ -179,6 +175,16 @@
       font-family: var(--mono);
       font-size: 0.84rem;
       overflow-wrap: anywhere;
+    }
+
+    .db-mini-title {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.86rem;
+      font-weight: 900;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     .db-section {
@@ -378,14 +384,9 @@
   <header class="container">
     <div class="topbar db-topbar">
       <div class="brand">
-        <div
-          class="title"
-          id="app-name"
-          style="font-family: var(--mono); font-weight: 900; letter-spacing: 0.6px;"
-        >
+        <div class="title" id="app-name" style="font-family: var(--mono); font-weight: 900; letter-spacing: 0.6px;">
           {{ page_title }}
         </div>
-
         <div class="subtitle db-subtitle">
           curated operational views for monitoring, audits, control-plane and Mac
         </div>
@@ -445,24 +446,27 @@
       <aside class="card db-ai-card">
         <div class="db-ai-head">
           <h2 class="db-ai-title">Latest AI weekly review</h2>
-          <span class="db-ai-pill">watch</span>
+          <span id="weekly-status" class="db-ai-pill">loading</span>
         </div>
 
-        <div class="db-ai-summary">
-          Weekly review summarizes deterministic audits, failures, recurring patterns, and practical next actions.
-          The current expected posture is: latest audit domains should be OK, while historical warning/critical
-          events stay visible as recurrence-prevention work.
+        <div id="weekly-window" class="db-ai-path">loading weekly review…</div>
+
+        <div id="weekly-summary" class="db-ai-summary">
+          Loading latest sanitized weekly review excerpt.
         </div>
 
-        <ul class="db-ai-list">
-          <li>Admin, VPS, monitoring stack, and Mac host audits are reviewed together.</li>
-          <li>Warning/critical audit briefs can be referenced in the weekly report.</li>
-          <li>Markdown is copied to Mac for operator reading.</li>
-        </ul>
+        <div>
+          <div class="db-mini-title">Top issues</div>
+          <ul id="weekly-issues" class="db-ai-list">
+            <li>loading</li>
+          </ul>
+        </div>
 
-        <div class="db-ai-path">
-          VPS: /srv/control-plane/state/reviews/weekly/weekly-latest.md<br />
-          Mac: ~/Documents/control-plane-reviews/weekly/
+        <div>
+          <div class="db-mini-title">Recommended actions</div>
+          <ul id="weekly-actions" class="db-ai-list">
+            <li>loading</li>
+          </ul>
         </div>
       </aside>
     </section>
@@ -493,11 +497,7 @@
           </div>
 
           <div class="db-preview-wrap large">
-            <img
-              class="db-preview"
-              src="/static/dashboards/01-control-plane-overview.png"
-              alt="Control Plane Overview dashboard preview"
-            />
+            <img class="db-preview" src="/static/dashboards/01-control-plane-overview.png" alt="Control Plane Overview dashboard preview" />
           </div>
 
           <div class="db-desc">
@@ -525,11 +525,7 @@
           </div>
 
           <div class="db-preview-wrap large">
-            <img
-              class="db-preview"
-              src="/static/dashboards/03-mac-dashboard.png"
-              alt="Mac Host Audit dashboard preview"
-            />
+            <img class="db-preview" src="/static/dashboards/03-mac-dashboard.png" alt="Mac Host Audit dashboard preview" />
           </div>
 
           <div class="db-desc">
@@ -567,11 +563,7 @@
           </div>
 
           <div class="db-preview-wrap">
-            <img
-              class="db-preview"
-              src="/static/dashboards/02-demo-app-observability.png"
-              alt="Demo App Observability dashboard preview"
-            />
+            <img class="db-preview" src="/static/dashboards/02-demo-app-observability.png" alt="Demo App Observability dashboard preview" />
           </div>
 
           <div class="db-desc">
@@ -598,11 +590,7 @@
           </div>
 
           <div class="db-preview-wrap">
-            <img
-              class="db-preview"
-              src="/static/dashboards/04-application-alerts.png"
-              alt="Application alerts dashboard preview"
-            />
+            <img class="db-preview" src="/static/dashboards/04-application-alerts.png" alt="Application alerts dashboard preview" />
           </div>
 
           <div class="db-desc">
@@ -629,11 +617,7 @@
           </div>
 
           <div class="db-preview-wrap">
-            <img
-              class="db-preview"
-              src="/static/dashboards/05-host-alerts.png"
-              alt="Host alerts dashboard preview"
-            />
+            <img class="db-preview" src="/static/dashboards/05-host-alerts.png" alt="Host alerts dashboard preview" />
           </div>
 
           <div class="db-desc">
@@ -652,5 +636,55 @@
       </div>
     </section>
   </main>
+
+  <script>
+    async function loadWeeklyReview() {
+      const statusNode = document.getElementById("weekly-status");
+      const windowNode = document.getElementById("weekly-window");
+      const summaryNode = document.getElementById("weekly-summary");
+      const issuesNode = document.getElementById("weekly-issues");
+      const actionsNode = document.getElementById("weekly-actions");
+
+      function setList(node, items, fallback) {
+        if (!node) return;
+        node.innerHTML = "";
+        const values = Array.isArray(items) && items.length ? items : [fallback];
+
+        for (const item of values) {
+          const li = document.createElement("li");
+          li.textContent = item;
+          node.appendChild(li);
+        }
+      }
+
+      try {
+        const response = await fetch("/api/weekly-review/latest", { cache: "no-store" });
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || "weekly review unavailable");
+        }
+
+        if (statusNode) statusNode.textContent = data.week_status || "unknown";
+        if (windowNode) {
+          windowNode.textContent = `Window: ${data.window_start || "unknown"} → ${data.window_end || "unknown"}`;
+        }
+        if (summaryNode) {
+          summaryNode.textContent = data.executive_summary || "No executive summary available.";
+        }
+
+        setList(issuesNode, data.top_issues, "No top issues found in the public excerpt.");
+        setList(actionsNode, data.recommended_actions, "No recommended actions found in the public excerpt.");
+      } catch (error) {
+        if (statusNode) statusNode.textContent = "offline";
+        if (windowNode) windowNode.textContent = "Weekly review endpoint is unavailable.";
+        if (summaryNode) summaryNode.textContent = "Latest weekly review could not be loaded.";
+        setList(issuesNode, [], "No public issue excerpt available.");
+        setList(actionsNode, [], "No public action excerpt available.");
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadWeeklyReview);
+  </script>
 </body>
 </html>
