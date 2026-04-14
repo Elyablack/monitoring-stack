@@ -4,15 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ page_title }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260414-1" />
-  <script defer src="/static/app.js?v=20260414-1"></script>
+  <link rel="stylesheet" href="/static/app.css?v=20260414-2" />
+  <script defer src="/static/app.js?v=20260414-2"></script>
   <style>
     .db-topbar {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
       gap: 18px;
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
+    }
+
+    .db-topbar .brand {
+      min-width: 0;
+      flex: 1 1 420px;
     }
 
     .db-topbar-right {
@@ -20,13 +25,14 @@
       align-items: center;
       justify-content: flex-end;
       gap: 12px;
-      flex-wrap: nowrap;
-      white-space: nowrap;
-      flex-shrink: 0;
+      flex-wrap: wrap;
+      white-space: normal;
+      flex: 1 1 520px;
+      min-width: 0;
     }
 
     .db-subtitle {
-      white-space: nowrap;
+      white-space: normal;
     }
 
     .db-link-btn {
@@ -35,6 +41,16 @@
       align-items: center;
       justify-content: center;
       white-space: nowrap;
+    }
+
+    .db-topbar-right .powerline {
+      min-width: 0;
+      max-width: 100%;
+      justify-content: flex-end;
+    }
+
+    .db-topbar-right .seg {
+      min-width: 0;
     }
 
     .db-hero {
@@ -327,19 +343,8 @@
     }
 
     @media (max-width: 1280px) {
-      .db-topbar {
-        flex-wrap: wrap;
-      }
-
       .db-topbar-right {
-        width: 100%;
         justify-content: flex-start;
-        flex-wrap: wrap;
-        white-space: normal;
-      }
-
-      .db-subtitle {
-        white-space: normal;
       }
 
       .db-hero,
