@@ -4,15 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ page_title }}</title>
-  <link rel="stylesheet" href="/static/app.css?v=20260414-10" />
-  <script defer src="/static/control_plane.js?v=20260414-10"></script>
+  <link rel="stylesheet" href="/static/app.css?v=20260414-11" />
+  <script defer src="/static/control_plane.js?v=20260414-11"></script>
 
   <style>
     .cp-topbar {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      gap: 22px;
+      gap: 18px;
       flex-wrap: wrap;
       margin-bottom: 22px;
     }
@@ -50,21 +50,11 @@
       flex: 0 0 auto;
     }
 
-    .cp-link-btn[href="/dashboards"] {
-      border-color: color-mix(in srgb, var(--info) 45%, var(--border));
-      background: color-mix(in srgb, var(--info) 14%, var(--panel));
-    }
-
     .cp-topbar-right .powerline {
       min-width: 0;
       max-width: 100%;
       justify-content: flex-end;
       flex-wrap: wrap;
-    }
-
-    .cp-summary-card {
-      margin-top: 22px;
-      border-color: color-mix(in srgb, var(--primary) 26%, var(--border));
     }
 
     .cp-card-head {
@@ -76,8 +66,21 @@
       margin-bottom: 12px;
     }
 
-    .cp-summary-card > .cp-card-head .step-title {
-      color: color-mix(in srgb, var(--primary) 82%, var(--text));
+    .cp-summary-card,
+    .cp-audit-section,
+    .cp-pipeline-card,
+    .cp-bottom-card {
+      border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
+    }
+
+    .cp-summary-card {
+      margin-top: 22px;
+    }
+
+    .cp-summary-card .step-title,
+    .cp-audit-section .step-title,
+    .cp-bottom-card .step-title {
+      color: color-mix(in srgb, var(--primary) 86%, var(--text));
     }
 
     .cp-badge-row {
@@ -133,18 +136,8 @@
       opacity: 0.9;
     }
 
-    .btn-window.primary {
-      border-color: color-mix(in srgb, var(--ok) 50%, var(--border));
-      background: color-mix(in srgb, var(--ok) 16%, var(--panel));
-    }
-
     .cp-audit-section {
       margin-top: 18px;
-      border-color: color-mix(in srgb, var(--info) 28%, var(--border));
-    }
-
-    .cp-audit-section > .step-title {
-      color: color-mix(in srgb, var(--info) 86%, var(--text));
     }
 
     .cp-audit-grid {
@@ -154,27 +147,19 @@
     }
 
     .cp-audit-card {
-      border: 1px solid var(--border);
+      border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
       border-radius: 16px;
       padding: 14px;
       background: color-mix(in srgb, var(--panel) 92%, transparent);
       min-width: 0;
     }
 
-    .cp-audit-card:nth-child(1) {
-      border-color: color-mix(in srgb, var(--primary) 34%, var(--border));
-    }
-
-    .cp-audit-card:nth-child(2) {
-      border-color: color-mix(in srgb, var(--ok) 34%, var(--border));
-    }
-
-    .cp-audit-card:nth-child(3) {
-      border-color: color-mix(in srgb, var(--warn) 38%, var(--border));
-    }
-
-    .cp-audit-card:nth-child(4) {
-      border-color: color-mix(in srgb, var(--info) 38%, var(--border));
+    .cp-audit-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
     }
 
     .cp-audit-title {
@@ -182,22 +167,36 @@
       font-weight: 950;
       margin-bottom: 8px;
       line-height: 1.25;
+      color: color-mix(in srgb, var(--primary) 86%, var(--text));
     }
 
-    .cp-audit-card:nth-child(1) .cp-audit-title {
-      color: color-mix(in srgb, var(--primary) 82%, var(--text));
+    .cp-audit-status {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 5px 8px;
+      font-family: var(--mono);
+      font-size: 0.74rem;
+      font-weight: 900;
+      white-space: nowrap;
+      color: var(--muted);
     }
 
-    .cp-audit-card:nth-child(2) .cp-audit-title {
-      color: color-mix(in srgb, var(--ok) 82%, var(--text));
+    .cp-audit-status.ok {
+      border-color: color-mix(in srgb, var(--ok) 45%, var(--border));
+      background: color-mix(in srgb, var(--ok) 12%, var(--panel));
+      color: color-mix(in srgb, var(--ok) 86%, var(--text));
     }
 
-    .cp-audit-card:nth-child(3) .cp-audit-title {
-      color: color-mix(in srgb, var(--warn) 88%, var(--text));
+    .cp-audit-status.warning {
+      border-color: color-mix(in srgb, var(--warn) 45%, var(--border));
+      background: color-mix(in srgb, var(--warn) 10%, var(--panel));
+      color: color-mix(in srgb, var(--warn) 86%, var(--text));
     }
 
-    .cp-audit-card:nth-child(4) .cp-audit-title {
-      color: color-mix(in srgb, var(--info) 86%, var(--text));
+    .cp-audit-status.critical {
+      border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+      background: color-mix(in srgb, var(--danger) 10%, var(--panel));
+      color: color-mix(in srgb, var(--danger) 86%, var(--text));
     }
 
     .cp-audit-text {
@@ -211,9 +210,18 @@
     .cp-audit-flow {
       font-family: var(--mono);
       font-size: 0.82rem;
-      color: color-mix(in srgb, var(--primary) 72%, var(--text));
+      color: color-mix(in srgb, var(--primary) 74%, var(--text));
       border-top: 1px solid var(--border);
       padding-top: 10px;
+      overflow-wrap: anywhere;
+    }
+
+    .cp-audit-live {
+      margin-top: 10px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      line-height: 1.35;
       overflow-wrap: anywhere;
     }
 
@@ -244,28 +252,8 @@
       height: 100%;
     }
 
-    .cp-pipeline-card:nth-child(1) {
-      border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
-    }
-
-    .cp-pipeline-card:nth-child(2) {
-      border-color: color-mix(in srgb, var(--warn) 30%, var(--border));
-    }
-
-    .cp-pipeline-card:nth-child(3) {
-      border-color: color-mix(in srgb, var(--ok) 28%, var(--border));
-    }
-
-    .cp-pipeline-card:nth-child(1) .step-title {
+    .cp-pipeline-card .step-title {
       color: color-mix(in srgb, var(--primary) 86%, var(--text));
-    }
-
-    .cp-pipeline-card:nth-child(2) .step-title {
-      color: color-mix(in srgb, var(--warn) 88%, var(--text));
-    }
-
-    .cp-pipeline-card:nth-child(3) .step-title {
-      color: color-mix(in srgb, var(--ok) 84%, var(--text));
     }
 
     .cp-pipeline-title {
@@ -285,14 +273,15 @@
     }
 
     .cp-grid-pre {
-      min-height: 380px;
-      height: 100%;
+      min-height: 260px;
+      max-height: 360px;
       overflow: auto;
       margin: 0;
     }
 
     .cp-grid-pre-sm {
-      min-height: 180px;
+      min-height: 160px;
+      max-height: 220px;
       overflow: auto;
     }
 
@@ -307,7 +296,7 @@
       display: block;
       text-decoration: none;
       color: inherit;
-      border: 1px solid rgba(120, 120, 120, 0.25);
+      border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
       border-radius: 14px;
       padding: 14px;
       background: rgba(255, 255, 255, 0.02);
@@ -321,8 +310,9 @@
 
     .cp-link-title {
       font-family: var(--mono);
-      font-weight: 700;
+      font-weight: 900;
       margin-bottom: 6px;
+      color: color-mix(in srgb, var(--primary) 86%, var(--text));
     }
 
     .cp-link-text {
@@ -343,7 +333,8 @@
       }
 
       .cp-grid-pre {
-        min-height: 280px;
+        min-height: 240px;
+        max-height: 320px;
       }
     }
   </style>
@@ -430,28 +421,44 @@
       <div class="card-title step-title">2. Audit domains</div>
 
       <div class="cp-audit-grid">
-        <div class="cp-audit-card">
-          <div class="cp-audit-title">Admin Host Audit</div>
+        <div class="cp-audit-card" data-domain="admin_host_audit">
+          <div class="cp-audit-top">
+            <div class="cp-audit-title">Admin Host Audit</div>
+            <div class="cp-audit-status">loading</div>
+          </div>
           <div class="cp-audit-text">Admin host posture, packages, services, logs and analyzer output.</div>
           <div class="cp-audit-flow">run → verify → analyze → optional brief</div>
+          <div class="cp-audit-live">latest: loading</div>
         </div>
 
-        <div class="cp-audit-card">
-          <div class="cp-audit-title">VPS Host Audit</div>
+        <div class="cp-audit-card" data-domain="vps_host_audit">
+          <div class="cp-audit-top">
+            <div class="cp-audit-title">VPS Host Audit</div>
+            <div class="cp-audit-status">loading</div>
+          </div>
           <div class="cp-audit-text">VPS services, UFW, Docker, disk, journal and node exporter health.</div>
           <div class="cp-audit-flow">run → verify → analyze → optional brief</div>
+          <div class="cp-audit-live">latest: loading</div>
         </div>
 
-        <div class="cp-audit-card">
-          <div class="cp-audit-title">Monitoring Stack Audit</div>
+        <div class="cp-audit-card" data-domain="monitoring_stack_audit">
+          <div class="cp-audit-top">
+            <div class="cp-audit-title">Monitoring Stack Audit</div>
+            <div class="cp-audit-status">loading</div>
+          </div>
           <div class="cp-audit-text">Prometheus, Alertmanager, Grafana, Loki and demo-app canary health.</div>
           <div class="cp-audit-flow">run → verify → analyze → optional brief</div>
+          <div class="cp-audit-live">latest: loading</div>
         </div>
 
-        <div class="cp-audit-card">
-          <div class="cp-audit-title">Mac Host Audit</div>
+        <div class="cp-audit-card" data-domain="mac_host_audit">
+          <div class="cp-audit-top">
+            <div class="cp-audit-title">Mac Host Audit</div>
+            <div class="cp-audit-status">loading</div>
+          </div>
           <div class="cp-audit-text">Agent-published Mac snapshot, memory, swap, battery, Time Machine and brew.</div>
           <div class="cp-audit-flow">verify → analyze → optional brief</div>
+          <div class="cp-audit-live">latest: loading</div>
         </div>
       </div>
     </section>
@@ -505,12 +512,12 @@
     </section>
 
     <section class="cp-grid-2">
-      <div class="card cp-grid-card">
+      <div class="card cp-grid-card cp-bottom-card">
         <div class="card-title step-title">6. Outcomes</div>
         <pre id="outcomes-out" class="pre pre-client cp-grid-pre-sm">(loading)</pre>
       </div>
 
-      <div class="card cp-grid-card">
+      <div class="card cp-grid-card cp-bottom-card">
         <div class="card-title step-title">7. Observability</div>
         <div class="cp-links">
           <a class="cp-link-card" href="/dashboards" target="_blank" rel="noopener noreferrer">
