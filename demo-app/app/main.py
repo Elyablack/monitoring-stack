@@ -736,6 +736,90 @@ def create_app() -> FastAPI:
         except Exception:
             return JSONResponse({"ok": False, "error": "runner unavailable"}, status_code=502)
 
+    @app.get("/api/control-plane/audit-domains")
+    async def control_plane_audit_domains(window: str = DEFAULT_WINDOW):
+        if not settings.control_plane_enabled:
+            return JSONResponse({"ok": False, "error": "control-plane disabled"}, status_code=404)
+
+        safe_window = _safe_window(window)
+
+        domains = {
+            "admin_host_audit": {
+                "title": "Admin Host Audit",
+                "actions": {"analyze_admin_host_audit", "verify_admin_host_audit", "run_admin_host_audit"},
+            },
+            "vps_host_audit": {
+                "title": "VPS Host Audit",
+                "actions": {"analyze_vps_host_audit", "verify_vps_host_audit", "run_vps_host_audit"},
+            },
+            "monitoring_stack_audit": {
+                "title": "Monitoring Stack Audit",
+                "actions": {
+                    "analyze_monitoring_stack_audit",
+                    "verify_monitoring_stack_audit",
+                    "run_monitoring_stack_audit",
+                },
+            },
+            "mac_host_audit": {
+                "title": "Mac Host Audit",
+                "actions": {"analyze_mac_host_audit", "verify_mac_host_audit"},
+            },
+        }
+
+        try:
+            runs = await app.state.runner.get_runs()
+            filtered_runs = _filter_runs(runs, window=safe_window, status="all")
+            result = []
+
+            for key, meta in domains.items():
+                domain_runs = [
+                    run for run in filtered_runs
+                    if str(run.get("action") or "") in meta["actions"]
+                ]
+                sorted_runs = _sort_recent(domain_runs)
+                latest = sorted_runs[0] if sorted_runs else None
+
+                failed = [
+                    run for run in domain_runs
+                    if str(run.get("status") or "").lower() == "failed"
+                ]
+
+                analyze_runs = [
+                    run for run in sorted_runs
+                    if str(run.get("action") or "").startswith("analyze_")
+                ]
+                latest_analyze = analyze_runs[0] if analyze_runs else latest
+
+                level = "idle"
+                if latest_analyze:
+                    status = str(latest_analyze.get("status") or "").lower()
+                    if status == "success":
+                        level = "ok"
+                    elif status == "failed":
+                        level = "critical"
+                    else:
+                        level = status or "unknown"
+
+                if failed:
+                    level = "warning" if level == "ok" else level
+
+                result.append({
+                    "domain": key,
+                    "title": meta["title"],
+                    "level": level,
+                    "runs": len(domain_runs),
+                    "failed_runs": len(failed),
+                    "latest_run": _sanitize_run(latest_analyze) if latest_analyze else None,
+                })
+
+            return {
+                "ok": True,
+                "window": safe_window,
+                "domains": result,
+            }
+        except Exception:
+            return JSONResponse({"ok": False, "error": "runner unavailable"}, status_code=502)
+
     @app.get("/api/control-plane/summary")
     async def control_plane_summary(window: str = DEFAULT_WINDOW):
         if not settings.control_plane_enabled:
