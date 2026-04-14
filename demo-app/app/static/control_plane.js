@@ -450,6 +450,35 @@
     pre.textContent = lines.join("\n");
   }
 
+  async function refreshAuditDomains() {
+    const res = await fetchJson(`/api/control-plane/audit-domains?window=${encodeURIComponent(state.window)}`);
+    const domains = res.json?.domains || [];
+
+    for (const domain of domains) {
+      const card = document.querySelector(`[data-domain="${domain.domain}"]`);
+      if (!card) continue;
+
+      const status = card.querySelector(".cp-audit-status");
+      const live = card.querySelector(".cp-audit-live");
+
+      const level = String(domain.level || "idle").toLowerCase();
+
+      if (status) {
+        status.className = `cp-audit-status ${level}`;
+        status.textContent = level.toUpperCase();
+      }
+
+      if (live) {
+        const latest = domain.latest_run || {};
+        const action = latest.action || "none";
+        const when = formatAge(latest.started_age_s);
+        const runs = domain.runs ?? 0;
+        const failed = domain.failed_runs ?? 0;
+        live.textContent = `latest=${action} · when=${when} · runs=${runs} · failed=${failed}`;
+      }
+    }
+  }
+
   async function refreshAll(opts = {}) {
     const silent = opts.silent === true;
 
@@ -472,6 +501,7 @@
 
     if (!silent) toast("refreshed");
     await refreshRunnerStatus();
+    await refreshAuditDomains();
   }
 
   function restartAutoRefresh() {
