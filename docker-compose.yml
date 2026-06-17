@@ -1,6 +1,6 @@
 services:
   prometheus:
-    image: prom/prometheus@sha256:69f5241418838263316593f7274a304b095c40bcf22e57272865da91bd60a8ac
+    image: prom/prometheus@sha256:a75c5a35bc21d7afe69551eefa3cb1e1fb1775fe759408007a66b54ec3de1f29
     container_name: prometheus
     restart: always
     networks:
@@ -46,7 +46,7 @@ services:
     pids_limit: 256
 
   alertmanager:
-    image: prom/alertmanager@sha256:b85533a2eb45865835315810315f6951331b2dbc8c93a6cf9a51e156a006a706
+    image: prom/alertmanager@sha256:af26fbe4dd1886ac0efd7bd55cd9027da262e105b137a376522b7c14c3626e4a
     container_name: alertmanager
     restart: always
     networks:
