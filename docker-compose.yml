@@ -23,7 +23,7 @@ services:
     pids_limit: 256
 
   grafana:
-    image: grafana/grafana@sha256:121a7a9ece6dc10b969f1f96eed64b4f07dfac0d0b8abc070f7cb83bbde86f63
+    image: grafana/grafana@sha256:1c1bd67c54c5fcf6e759897852b5a584191bd6796e8d328a5ace457799801261
     container_name: grafana
     restart: always
     ports:
@@ -95,7 +95,7 @@ services:
     pids_limit: 256
 
   loki:
-    image: grafana/loki@sha256:70b9f699fc9bb868b62f1cfd4f787dfa50242f1fd92e6089787d5d7daea75fe8
+    image: grafana/loki@sha256:87f0a067673756a3cede1bcbf0c74875f7df9b09fddb53e399d0c576f756cfcc
     container_name: loki
     restart: always
     networks:
