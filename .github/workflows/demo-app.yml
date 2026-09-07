@@ -34,7 +34,7 @@ jobs:
       workflow_changed: ${{ steps.filter.outputs.demo_app_workflow }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Paths filter
         id: filter
@@ -60,7 +60,7 @@ jobs:
       is_tag: ${{ steps.vars.outputs.is_tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Vars
         id: vars
